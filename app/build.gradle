@@ -20,5 +20,5 @@ java {
 }
 
 application {
-    mainClass = 'me.redteapot.rebot.App'
+    mainClass.set('me.redteapot.rebot.App')
 }
