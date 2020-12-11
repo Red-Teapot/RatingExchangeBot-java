@@ -136,3 +136,6 @@ gradle-app.setting
 **/build/
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij+all,java,gradle
+
+# Run directory for manual testing
+run/
