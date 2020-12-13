@@ -22,7 +22,7 @@ public class REBot {
 
         final GatewayDiscordClient client = DiscordClientBuilder
             .create(config.getDiscord().getToken()).build().login().block();
-        assert client != null;
+        Assertion.isTrue(client != null, "Discord client is null");
         log.info("Connected");
 
         final CommandDispatcher commandDispatcher = new CommandDispatcher(config, client);

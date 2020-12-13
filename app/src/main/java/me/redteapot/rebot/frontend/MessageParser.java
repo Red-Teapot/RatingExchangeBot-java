@@ -3,7 +3,10 @@ package me.redteapot.rebot.frontend;
 import discord4j.common.util.Snowflake;
 import discord4j.core.object.entity.Message;
 import lombok.Getter;
+import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.frontend.MessageReader.ReaderException;
+
+import java.util.function.Predicate;
 
 @SuppressWarnings("unused")
 public class MessageParser {
@@ -22,9 +25,13 @@ public class MessageParser {
         return reader.read(c -> !Character.isWhitespace(c));
     }
 
+    public String readUnquotedString(Predicate<Character> allowedChars) {
+        return reader.read(c -> !Character.isWhitespace(c) && allowedChars.test(c));
+    }
+
     public String readQuotedString() throws ReaderException {
         char quote = reader.peek();
-        reader.expect(MessageParser::isQuoteChar);
+        reader.expect(Chars::isQuote);
 
         final StringBuilder result = new StringBuilder();
         boolean escape = false;
@@ -52,12 +59,11 @@ public class MessageParser {
             result.append(c);
         }
 
-        // FIXME
-        throw new IllegalStateException();
+        throw new UnexpectedEndOfMessageException();
     }
 
     public String readString() throws ReaderException {
-        if (isQuoteChar(reader.peek())) {
+        if (Chars.isQuote(reader.peek())) {
             return readQuotedString();
         } else {
             return readUnquotedString();
@@ -69,7 +75,7 @@ public class MessageParser {
 
         prefixCheck.check();
 
-        final long id = Long.parseLong(reader.read(Character::isDigit));
+        final long id = Long.parseLong(reader.read(Chars::isAsciiDigit));
 
         reader.expect('>');
 
@@ -91,12 +97,11 @@ public class MessageParser {
         return readSnowflake(() -> reader.expect("@&"));
     }
 
+    public static class UnexpectedEndOfMessageException extends ReaderException {
+    }
+
     @FunctionalInterface
     private interface PrefixCheck {
         void check() throws ReaderException;
-    }
-
-    private static boolean isQuoteChar(char c) {
-        return c == '"' || c == '\'';
     }
 }
