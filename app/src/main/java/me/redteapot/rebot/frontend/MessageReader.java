@@ -269,4 +269,11 @@ public class MessageReader {
      */
     public static class ReaderUnexpectedStringException extends ReaderException {
     }
+
+    /**
+     * A {@link MessageReader} exception thrown if the reader reaches
+     * the end of the message unexpectedly.
+     */
+    public static class UnexpectedEndOfMessageException extends ReaderException {
+    }
 }
