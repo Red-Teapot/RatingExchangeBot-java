@@ -1,7 +1,5 @@
 package me.redteapot.rebot.frontend;
 
-import discord4j.core.object.entity.Message;
-
 import java.util.function.Predicate;
 
 /**
@@ -9,7 +7,7 @@ import java.util.function.Predicate;
  */
 @SuppressWarnings("unused")
 public class MessageReader {
-    private final String content;
+    private final String message;
     private int position = 0;
 
     /**
@@ -17,8 +15,8 @@ public class MessageReader {
      *
      * @param message The message to read.
      */
-    public MessageReader(Message message) {
-        this.content = message.getContent();
+    public MessageReader(String message) {
+        this.message = message;
     }
 
     /**
@@ -29,7 +27,7 @@ public class MessageReader {
      * @return True if it can, false otherwise.
      */
     public boolean canRead(int offset) {
-        return position + offset < content.length();
+        return position + offset < message.length();
     }
 
     /**
@@ -49,7 +47,7 @@ public class MessageReader {
      */
     public char peek() throws ReaderOutOfBoundsException {
         assertCanRead();
-        return content.charAt(position);
+        return message.charAt(position);
     }
 
     /**
@@ -93,7 +91,7 @@ public class MessageReader {
      */
     public char read() throws ReaderOutOfBoundsException {
         assertCanRead();
-        return content.charAt(position++);
+        return message.charAt(position++);
     }
 
     /**
@@ -107,7 +105,7 @@ public class MessageReader {
         assertCanRead(count - 1);
         final int start = position;
         position += count;
-        return content.substring(start, position);
+        return message.substring(start, position);
     }
 
     /**
@@ -123,7 +121,7 @@ public class MessageReader {
             while (canRead() && readPredicate.test(peek())) {
                 skip();
             }
-            return content.substring(start, position);
+            return message.substring(start, position);
         } catch (ReaderException e) {
             // This should never happen
             throw new IllegalStateException();

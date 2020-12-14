@@ -8,6 +8,8 @@ import me.redteapot.rebot.frontend.CommandDispatcher;
 
 import java.io.File;
 
+import static me.redteapot.rebot.Checks.ensure;
+
 @Slf4j
 public class REBot {
     public static void main(String[] args) {
@@ -17,12 +19,13 @@ public class REBot {
         }
 
         Config config = new Toml().read(new File(args[0])).to(Config.class);
+        ensure(config != null, "Config object is null");
 
         log.debug("Bot prefix: '{}'", config.getPrefix());
 
         final GatewayDiscordClient client = DiscordClientBuilder
             .create(config.getDiscord().getToken()).build().login().block();
-        Assertion.isTrue(client != null, "Discord client is null");
+        ensure(client != null, "Discord client is null");
         log.info("Connected");
 
         final CommandDispatcher commandDispatcher = new CommandDispatcher(config, client);

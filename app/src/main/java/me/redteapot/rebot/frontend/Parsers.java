@@ -1,35 +1,20 @@
 package me.redteapot.rebot.frontend;
 
 import discord4j.common.util.Snowflake;
-import discord4j.core.object.entity.Message;
-import lombok.Getter;
 import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.frontend.MessageReader.ReaderException;
 
-import java.util.function.Predicate;
-
 @SuppressWarnings("unused")
-public class MessageParser {
-    @Getter
-    private final MessageReader reader;
-
-    public MessageParser(Message message) {
-        reader = new MessageReader(message);
-    }
-
-    public void skipWhitespace() {
+public class Parsers {
+    public static void skipWhitespace(MessageReader reader) {
         reader.skip(Character::isWhitespace);
     }
 
-    public String readUnquotedString() {
+    public static String readUnquotedString(MessageReader reader) {
         return reader.read(c -> !Character.isWhitespace(c));
     }
 
-    public String readUnquotedString(Predicate<Character> allowedChars) {
-        return reader.read(c -> !Character.isWhitespace(c) && allowedChars.test(c));
-    }
-
-    public String readQuotedString() throws ReaderException {
+    public static String readQuotedString(MessageReader reader) throws ReaderException {
         char quote = reader.peek();
         reader.expect(Chars::isQuote);
 
@@ -62,15 +47,15 @@ public class MessageParser {
         throw new UnexpectedEndOfMessageException();
     }
 
-    public String readString() throws ReaderException {
+    public static String readString(MessageReader reader) throws ReaderException {
         if (Chars.isQuote(reader.peek())) {
-            return readQuotedString();
+            return readQuotedString(reader);
         } else {
-            return readUnquotedString();
+            return readUnquotedString(reader);
         }
     }
 
-    private Snowflake readSnowflake(PrefixCheck prefixCheck) throws ReaderException {
+    private static Snowflake readSnowflake(MessageReader reader, PrefixCheck prefixCheck) throws ReaderException {
         reader.expect('<');
 
         prefixCheck.check();
@@ -82,19 +67,19 @@ public class MessageParser {
         return Snowflake.of(id);
     }
 
-    public Snowflake readUserMention() throws ReaderException {
-        return readSnowflake(() -> {
+    public static Snowflake readUserMention(MessageReader reader) throws ReaderException {
+        return readSnowflake(reader, () -> {
             reader.expect('@'); // For users
             reader.optional('!'); // For users with nicknames (optional)
         });
     }
 
-    public Snowflake readChannelMention() throws ReaderException {
-        return readSnowflake(() -> reader.expect('#'));
+    public static Snowflake readChannelMention(MessageReader reader) throws ReaderException {
+        return readSnowflake(reader, () -> reader.expect('#'));
     }
 
-    public Snowflake readRoleMention() throws ReaderException {
-        return readSnowflake(() -> reader.expect("@&"));
+    public static Snowflake readRoleMention(MessageReader reader) throws ReaderException {
+        return readSnowflake(reader, () -> reader.expect("@&"));
     }
 
     public static class UnexpectedEndOfMessageException extends ReaderException {
