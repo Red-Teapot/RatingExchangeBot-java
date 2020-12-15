@@ -10,7 +10,9 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface OrderedArgument {
-    boolean optional() default false;
+    int order();
 
     Class<? extends ArgumentParser> type();
+
+    boolean optional() default false;
 }

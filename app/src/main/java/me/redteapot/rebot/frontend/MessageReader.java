@@ -1,6 +1,10 @@
 package me.redteapot.rebot.frontend;
 
+import lombok.Getter;
+
 import java.util.function.Predicate;
+
+import static me.redteapot.rebot.Checks.require;
 
 /**
  * A reader class for Discord messages.
@@ -8,6 +12,7 @@ import java.util.function.Predicate;
 @SuppressWarnings("unused")
 public class MessageReader {
     private final String message;
+    @Getter
     private int position = 0;
 
     /**
@@ -219,6 +224,11 @@ public class MessageReader {
         } catch (ReaderException e) {
             return false;
         }
+    }
+
+    public void rewind(int position) {
+        require(position <= this.position, "New position must be less than or equal to the current one");
+        this.position = position;
     }
 
     /**

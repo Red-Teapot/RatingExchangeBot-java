@@ -3,16 +3,21 @@ package me.redteapot.rebot.frontend;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.message.MessageCreateEvent;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.Config;
 import me.redteapot.rebot.commands.HelpCommand;
 import me.redteapot.rebot.commands.StopCommand;
+import me.redteapot.rebot.frontend.MessageReader.ReaderException;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
+import me.redteapot.rebot.frontend.annotations.OrderedArgument;
 import me.redteapot.rebot.frontend.arguments.UserMention;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.reflect.Field;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static me.redteapot.rebot.Checks.require;
 
@@ -20,7 +25,7 @@ import static me.redteapot.rebot.Checks.require;
 public class CommandDispatcher {
     private final Config config;
     private final GatewayDiscordClient client;
-    private final Map<String, Class<? extends Command>> commands = new HashMap<>();
+    private final Map<String, CommandInfo> commands = new HashMap<>();
     private final Snowflake selfID;
 
     public CommandDispatcher(Config config, GatewayDiscordClient client) {
@@ -75,13 +80,36 @@ public class CommandDispatcher {
         }
     }
 
-    private <T extends Command> void execute(MessageReader reader,
-                                             CommandContext context,
-                                             Class<T> commandClass) throws Exception {
-        T command = commandClass.getConstructor().newInstance();
+    private void execute(MessageReader reader,
+                         CommandContext context,
+                         CommandInfo commandInfo) throws Exception {
+        Command command = commandInfo.getClazz().getConstructor().newInstance();
         command.context = context;
 
-        // TODO Parse arguments
+        for (OrderedArgumentInfo info : commandInfo.getOrderedArguments()) {
+            reader.skip(Character::isWhitespace);
+            final int position = reader.getPosition();
+            ArgumentParser parser = info.getParser().getConstructor().newInstance();
+            try {
+                info.getField().set(command, parser.parse(reader));
+            } catch (ReaderException e) {
+                if (info.isOptional()) {
+                    reader.rewind(position);
+                    break;
+                } else {
+                    throw e;
+                }
+            }
+            reader.skip(Character::isWhitespace);
+        }
+
+        // TODO Actually execute
+
+        reader.skip(Character::isWhitespace);
+        if (reader.canRead()) {
+            context.respond("There's some junk at the end of the command. Please fix it.");
+            return;
+        }
 
         command.execute();
     }
@@ -97,7 +125,9 @@ public class CommandDispatcher {
             "Invalid command name: {} for {}", name, command);
         require(!commands.containsKey(name),
             "Duplicate command name: {} for {}", name, command);
-        commands.put(name, command);
+
+        commands.put(name, new CommandInfo(command));
+
         log.debug("Registered '{}' command with class {}", name, command);
     }
 
@@ -112,5 +142,50 @@ public class CommandDispatcher {
         } else {
             return reader.optional(config.getPrefix());
         }
+    }
+
+    @Data
+    private static class CommandInfo {
+        private final Class<? extends Command> clazz;
+        private final List<OrderedArgumentInfo> orderedArguments;
+        private final Map<String, Field> namedArguments;
+
+        private CommandInfo(Class<? extends Command> clazz) {
+            this.clazz = clazz;
+
+            this.orderedArguments = Arrays.stream(clazz.getFields())
+                .filter(f -> f.getAnnotation(OrderedArgument.class) != null)
+                .sorted(Comparator.comparingInt(f -> f.getAnnotation(OrderedArgument.class).order()))
+                .map(field -> {
+                    OrderedArgument annotation = field.getAnnotation(OrderedArgument.class);
+
+                    return new OrderedArgumentInfo(
+                        annotation.order(),
+                        annotation.type(),
+                        annotation.optional(),
+                        field);
+                })
+                .collect(Collectors.toList());
+
+            boolean optional = false;
+            for (OrderedArgumentInfo info : orderedArguments) {
+                require(!optional || info.isOptional(),
+                    "Non-optional arguments are not allowed following optional ones: {}", clazz);
+
+                optional = optional || info.isOptional();
+            }
+
+            // TODO
+            this.namedArguments = new HashMap<>();
+        }
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class OrderedArgumentInfo {
+        private final int order;
+        private final Class<? extends ArgumentParser> parser;
+        private final boolean optional;
+        private final Field field;
     }
 }
