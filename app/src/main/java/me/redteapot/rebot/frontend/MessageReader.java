@@ -1,16 +1,22 @@
 package me.redteapot.rebot.frontend;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import me.redteapot.rebot.Markdown;
 
 import java.util.function.Predicate;
 
 import static me.redteapot.rebot.Checks.require;
+import static me.redteapot.rebot.Checks.unreachable;
 
 /**
  * A reader class for Discord messages.
  */
 @SuppressWarnings("unused")
 public class MessageReader {
+    @Getter
     private final String message;
     @Getter
     private int position = 0;
@@ -83,8 +89,7 @@ public class MessageReader {
                 skip();
             }
         } catch (ReaderException e) {
-            // This should never happen
-            throw new IllegalStateException();
+            unreachable("MessageReader.skip(predicate) got a ReaderException: {}", e);
         }
     }
 
@@ -128,8 +133,7 @@ public class MessageReader {
             }
             return message.substring(start, position);
         } catch (ReaderException e) {
-            // This should never happen
-            throw new IllegalStateException();
+            return unreachable("MessageReader.read(predicate) got a ReaderException: {}", e);
         }
     }
 
@@ -143,7 +147,7 @@ public class MessageReader {
     public void expect(char c) throws ReaderException {
         assertCanRead();
         if (peek() != c) {
-            throw new ReaderUnexpectedCharException();
+            throw new ReaderUnexpectedCharException(message, position, c);
         }
         skip();
     }
@@ -158,7 +162,7 @@ public class MessageReader {
     public void expect(String s) throws ReaderException {
         assertCanRead(s.length());
         if (!read(s.length()).equals(s)) {
-            throw new ReaderUnexpectedStringException();
+            throw new ReaderUnexpectedStringException(message, position, s);
         }
         skip(s.length());
     }
@@ -173,7 +177,7 @@ public class MessageReader {
     public void expect(Predicate<Character> predicate) throws ReaderException {
         assertCanRead();
         if (!predicate.test(peek())) {
-            throw new ReaderUnexpectedCharException();
+            throw new ReaderUnexpectedCharException(message, position);
         }
         skip();
     }
@@ -238,7 +242,7 @@ public class MessageReader {
      */
     private void assertCanRead(int offset) throws ReaderOutOfBoundsException {
         if (!canRead(offset)) {
-            throw new ReaderOutOfBoundsException();
+            throw new ReaderOutOfBoundsException(message, position + offset);
         }
     }
 
@@ -249,14 +253,24 @@ public class MessageReader {
      */
     private void assertCanRead() throws ReaderOutOfBoundsException {
         if (!canRead()) {
-            throw new ReaderOutOfBoundsException();
+            throw new ReaderOutOfBoundsException(message, position);
         }
     }
 
     /**
      * A general {@link MessageReader} exception.
      */
-    public static class ReaderException extends Exception {
+    @EqualsAndHashCode(callSuper = false)
+    @Data
+    @AllArgsConstructor
+    public static class ReaderException extends Exception implements Markdown {
+        protected final String source;
+        protected final int position;
+
+        @Override
+        public String markdown() {
+            return "Syntax error.";
+        }
     }
 
     /**
@@ -264,6 +278,14 @@ public class MessageReader {
      * out of the message bounds.
      */
     public static class ReaderOutOfBoundsException extends ReaderException {
+        public ReaderOutOfBoundsException(String source, int position) {
+            super(source, position);
+        }
+
+        @Override
+        public String markdown() {
+            return "The reader got out of bounds while reading the message. Perhaps something is incomplete?";
+        }
     }
 
     /**
@@ -271,6 +293,34 @@ public class MessageReader {
      * an unexpected char.
      */
     public static class ReaderUnexpectedCharException extends ReaderException {
+        protected final Character expected;
+
+        public ReaderUnexpectedCharException(String source, int position, Character expected) {
+            super(source, position);
+            this.expected = expected;
+        }
+
+        public ReaderUnexpectedCharException(String source, int position) {
+            super(source, position);
+            this.expected = null;
+        }
+
+        @Override
+        public String markdown() {
+            int realPos = position + 1;
+            char realChar;
+            if (position < source.length()) {
+                realChar = source.charAt(position);
+            } else {
+                realChar = '?';
+            }
+
+            if (expected == null) {
+                return String.format("Unexpected char: `%c` at %d.", realChar, realPos);
+            } else {
+                return String.format("Unexpected char: `%c` at %d, '%c' expected.", realChar, realPos, expected);
+            }
+        }
     }
 
     /**
@@ -278,6 +328,29 @@ public class MessageReader {
      * an unexpected string.
      */
     public static class ReaderUnexpectedStringException extends ReaderException {
+        protected final String expected;
+
+        public ReaderUnexpectedStringException(String source, int position, String expected) {
+            super(source, position);
+            this.expected = expected;
+        }
+
+        public ReaderUnexpectedStringException(String source, int position) {
+            super(source, position);
+            this.expected = null;
+        }
+
+        @Override
+        public String markdown() {
+            int realPos = position + 1;
+            char realChar = source.charAt(position);
+
+            if (expected == null) {
+                return String.format("Unexpected char: `%c` at %d.", realChar, realPos);
+            } else {
+                return String.format("Unexpected char: `%c` at %d, '%s' expected.", realChar, realPos, expected);
+            }
+        }
     }
 
     /**
@@ -285,5 +358,13 @@ public class MessageReader {
      * the end of the message unexpectedly.
      */
     public static class UnexpectedEndOfMessageException extends ReaderException {
+        public UnexpectedEndOfMessageException(String source, int position) {
+            super(source, position);
+        }
+
+        @Override
+        public String markdown() {
+            return "Unexpected end of message.";
+        }
     }
 }

@@ -12,7 +12,9 @@ import me.redteapot.rebot.commands.HelpCommand;
 import me.redteapot.rebot.commands.StopCommand;
 import me.redteapot.rebot.frontend.MessageReader.ReaderException;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
+import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.OrderedArgument;
+import me.redteapot.rebot.frontend.arguments.Identifier;
 import me.redteapot.rebot.frontend.arguments.UserMention;
 
 import java.lang.reflect.Field;
@@ -74,6 +76,11 @@ public class CommandDispatcher {
 
         try {
             execute(reader, context, commands.get(commandName));
+        } catch (ReaderException e) {
+            StringBuilder response = new StringBuilder();
+            response.append("There was an error while reading your command:\n");
+            response.append(e.markdown());
+            context.respond(response.toString());
         } catch (Exception e) {
             log.error("Exception during command execution", e);
             context.respond("Sorry, there was an internal error while executing the command.");
@@ -89,6 +96,7 @@ public class CommandDispatcher {
         for (OrderedArgumentInfo info : commandInfo.getOrderedArguments()) {
             reader.skip(Character::isWhitespace);
             final int position = reader.getPosition();
+            @SuppressWarnings("rawtypes")
             ArgumentParser parser = info.getParser().getConstructor().newInstance();
             try {
                 info.getField().set(command, parser.parse(reader));
@@ -102,10 +110,43 @@ public class CommandDispatcher {
             }
             reader.skip(Character::isWhitespace);
         }
+        reader.skip(Character::isWhitespace);
 
-        // TODO Actually execute
+        Set<String> unfilledNamedArguments = new HashSet<>(commandInfo.getNamedArguments().keySet());
+        while (!unfilledNamedArguments.isEmpty()) {
+            int position = reader.getPosition();
+            String name;
+            try {
+                name = new Identifier().parse(reader);
+            } catch (ReaderException e) {
+                reader.rewind(position);
+                break;
+            }
+            if (!unfilledNamedArguments.contains(name)) {
+                context.respond("Duplicate/unknown argument name: " + name);
+                return;
+            }
+            reader.expect('=');
+            NamedArgumentInfo info = commandInfo.getNamedArguments().get(name);
+            position = reader.getPosition();
+            @SuppressWarnings("rawtypes")
+            ArgumentParser parser = info.getParser().getConstructor().newInstance();
+            try {
+                info.getField().set(command, parser.parse(reader));
+                unfilledNamedArguments.remove(name);
+            } catch (ReaderException e) {
+                if (info.isOptional()) {
+                    reader.rewind(position);
+                    break;
+                } else {
+                    throw e;
+                }
+            }
+            reader.skip(Character::isWhitespace);
+        }
 
         reader.skip(Character::isWhitespace);
+
         if (reader.canRead()) {
             context.respond("There's some junk at the end of the command. Please fix it.");
             return;
@@ -148,7 +189,7 @@ public class CommandDispatcher {
     private static class CommandInfo {
         private final Class<? extends Command> clazz;
         private final List<OrderedArgumentInfo> orderedArguments;
-        private final Map<String, Field> namedArguments;
+        private final Map<String, NamedArgumentInfo> namedArguments;
 
         private CommandInfo(Class<? extends Command> clazz) {
             this.clazz = clazz;
@@ -175,8 +216,22 @@ public class CommandDispatcher {
                 optional = optional || info.isOptional();
             }
 
-            // TODO
             this.namedArguments = new HashMap<>();
+            Arrays.stream(clazz.getFields())
+                .filter(f -> f.getAnnotation(NamedArgument.class) != null)
+                .forEach(field -> {
+                    NamedArgument annotation = field.getAnnotation(NamedArgument.class);
+
+                    require(annotation.name().chars().allMatch(c -> Chars.isAsciiIdentifier((char) c)),
+                        "Invalid keyword argument name: {}", annotation.name());
+
+                    namedArguments.put(annotation.name(), new NamedArgumentInfo(
+                        annotation.name(),
+                        annotation.type(),
+                        annotation.optional(),
+                        field
+                    ));
+                });
         }
     }
 
@@ -184,6 +239,15 @@ public class CommandDispatcher {
     @AllArgsConstructor
     private static class OrderedArgumentInfo {
         private final int order;
+        private final Class<? extends ArgumentParser> parser;
+        private final boolean optional;
+        private final Field field;
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class NamedArgumentInfo {
+        private final String name;
         private final Class<? extends ArgumentParser> parser;
         private final boolean optional;
         private final Field field;

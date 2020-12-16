@@ -1,6 +1,6 @@
 package me.redteapot.rebot;
 
-import org.slf4j.helpers.MessageFormatter;
+import static me.redteapot.rebot.Strings.format;
 
 @SuppressWarnings("unused")
 public class Checks {
@@ -43,7 +43,7 @@ public class Checks {
         }
     }
 
-    private static String format(String message, Object... args) {
-        return MessageFormatter.arrayFormat(message, args).getMessage();
+    public static <T> T unreachable(String message, Object... args) {
+        throw new IllegalStateException(format(message, args));
     }
 }

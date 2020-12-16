@@ -9,8 +9,8 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface OrderedArgument {
-    int order();
+public @interface NamedArgument {
+    String name();
 
     @SuppressWarnings("rawtypes")
     Class<? extends ArgumentParser> type();

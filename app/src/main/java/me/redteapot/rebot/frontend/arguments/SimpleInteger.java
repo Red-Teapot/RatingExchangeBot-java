@@ -12,7 +12,7 @@ public class SimpleInteger implements ArgumentParser<Integer> {
         final boolean negative = reader.optional('-');
         final String string = reader.read(Chars::isAsciiDigit);
         if (string.isEmpty()) {
-            throw new ReaderUnexpectedCharException();
+            throw new ReaderUnexpectedCharException(reader.getMessage(), reader.getPosition());
         }
         int result = Integer.parseInt(string);
         if (negative) {

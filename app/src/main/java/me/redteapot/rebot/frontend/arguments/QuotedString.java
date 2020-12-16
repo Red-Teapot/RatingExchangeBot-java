@@ -17,15 +17,6 @@ public class QuotedString implements ArgumentParser<String> {
         while (reader.canRead()) {
             final char c = reader.read();
 
-            if (c == '\\') {
-                if (escape) {
-                    result.append('\\');
-                } else {
-                    escape = true;
-                }
-                continue;
-            }
-
             if (c == quote) {
                 if (escape) {
                     result.append(quote);
@@ -35,9 +26,20 @@ public class QuotedString implements ArgumentParser<String> {
                 continue;
             }
 
+            if (c == '\\') {
+                if (escape) {
+                    result.append('\\');
+                } else {
+                    escape = true;
+                }
+                continue;
+            } else {
+                escape = false;
+            }
+
             result.append(c);
         }
 
-        throw new UnexpectedEndOfMessageException();
+        throw new UnexpectedEndOfMessageException(reader.getMessage(), reader.getPosition());
     }
 }
