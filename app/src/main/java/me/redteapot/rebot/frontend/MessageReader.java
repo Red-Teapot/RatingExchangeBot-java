@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import me.redteapot.rebot.Markdown;
+import me.redteapot.rebot.Strings;
 
 import java.util.function.Predicate;
 
@@ -54,9 +55,9 @@ public class MessageReader {
      * Peeks one char without advancing the current reader position.
      *
      * @return The char at current position.
-     * @throws ReaderOutOfBoundsException If the reader can't read the char.
+     * @throws UnexpectedEndOfMessageException If the reader can't read the char.
      */
-    public char peek() throws ReaderOutOfBoundsException {
+    public char peek() throws UnexpectedEndOfMessageException {
         assertCanRead();
         return message.charAt(position);
     }
@@ -97,9 +98,9 @@ public class MessageReader {
      * Reads one char and advances the current position by 1.
      *
      * @return The char at current position.
-     * @throws ReaderOutOfBoundsException If the reader can't read the char.
+     * @throws UnexpectedEndOfMessageException If the reader can't read the char.
      */
-    public char read() throws ReaderOutOfBoundsException {
+    public char read() throws UnexpectedEndOfMessageException {
         assertCanRead();
         return message.charAt(position++);
     }
@@ -109,9 +110,9 @@ public class MessageReader {
      *
      * @param count The number of chars to read.
      * @return The read string.
-     * @throws ReaderOutOfBoundsException If the reader can't read the string.
+     * @throws UnexpectedEndOfMessageException If the reader can't read the string.
      */
-    public String read(int count) throws ReaderOutOfBoundsException {
+    public String read(int count) throws UnexpectedEndOfMessageException {
         assertCanRead(count - 1);
         final int start = position;
         position += count;
@@ -238,22 +239,22 @@ public class MessageReader {
     /**
      * Asserts that the reader can read the char at given {@code offset}.
      *
-     * @throws ReaderOutOfBoundsException If the reader can't read the char.
+     * @throws UnexpectedEndOfMessageException If the reader can't read the char.
      */
-    private void assertCanRead(int offset) throws ReaderOutOfBoundsException {
+    private void assertCanRead(int offset) throws UnexpectedEndOfMessageException {
         if (!canRead(offset)) {
-            throw new ReaderOutOfBoundsException(message, position + offset);
+            throw new UnexpectedEndOfMessageException(message, position + offset);
         }
     }
 
     /**
      * Asserts that the reader can read one char.
      *
-     * @throws ReaderOutOfBoundsException If the reader can't read the char.
+     * @throws UnexpectedEndOfMessageException If the reader can't read the char.
      */
-    private void assertCanRead() throws ReaderOutOfBoundsException {
+    private void assertCanRead() throws UnexpectedEndOfMessageException {
         if (!canRead()) {
-            throw new ReaderOutOfBoundsException(message, position);
+            throw new UnexpectedEndOfMessageException(message, position);
         }
     }
 
@@ -270,21 +271,6 @@ public class MessageReader {
         @Override
         public String markdown() {
             return "Syntax error.";
-        }
-    }
-
-    /**
-     * A {@link MessageReader} exception thrown when trying to read chars
-     * out of the message bounds.
-     */
-    public static class ReaderOutOfBoundsException extends ReaderException {
-        public ReaderOutOfBoundsException(String source, int position) {
-            super(source, position);
-        }
-
-        @Override
-        public String markdown() {
-            return "The reader got out of bounds while reading the message. Perhaps something is incomplete?";
         }
     }
 
@@ -308,18 +294,20 @@ public class MessageReader {
         @Override
         public String markdown() {
             int realPos = position + 1;
-            char realChar;
-            if (position < source.length()) {
-                realChar = source.charAt(position);
+            char realChar = source.charAt(position);
+
+            StringBuilder message = new StringBuilder();
+            if (expected == null) {
+                message.append(String.format("Unexpected char: `%c` at %d.", realChar, realPos));
             } else {
-                realChar = '?';
+                message.append(String.format("Unexpected char: `%c` at %d, '%c' expected.", realChar, realPos, expected));
             }
 
-            if (expected == null) {
-                return String.format("Unexpected char: `%c` at %d.", realChar, realPos);
-            } else {
-                return String.format("Unexpected char: `%c` at %d, '%c' expected.", realChar, realPos, expected);
-            }
+            message.append("\n```");
+            message.append(Strings.comment(source, "Here", position, 10));
+            message.append("```");
+
+            return message.toString();
         }
     }
 
@@ -345,11 +333,22 @@ public class MessageReader {
             int realPos = position + 1;
             char realChar = source.charAt(position);
 
+            StringBuilder message = new StringBuilder();
             if (expected == null) {
-                return String.format("Unexpected char: `%c` at %d.", realChar, realPos);
+                message.append(String.format("Unexpected string: `%s` at %d.", realChar, realPos));
+                message.append("\n```");
+                message.append(Strings.comment(source, "Here", position, 10));
+                message.append("```");
             } else {
-                return String.format("Unexpected char: `%c` at %d, '%s' expected.", realChar, realPos, expected);
+                int expectedEnd = Math.max(source.length(), position + expected.length());
+                String realString = source.substring(position, expectedEnd);
+                message.append(String.format("Unexpected string: `%s` at %d, '%s' expected.", realString, realPos, expected));
+                message.append("\n```");
+                message.append(Strings.comment(source, "Here", position, expectedEnd, 10));
+                message.append("```");
             }
+
+            return message.toString();
         }
     }
 

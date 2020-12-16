@@ -7,7 +7,7 @@ import me.redteapot.rebot.frontend.arguments.Identifier;
 
 @BotCommand(name = "help")
 public class HelpCommand extends Command {
-    @OrderedArgument(order = 0, type = Identifier.class, optional = true)
+    @OrderedArgument(order = 0, type = Identifier.class, optional = false)
     public String name;
 
     @Override

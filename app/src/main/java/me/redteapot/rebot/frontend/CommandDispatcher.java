@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.Config;
+import me.redteapot.rebot.Strings;
 import me.redteapot.rebot.commands.HelpCommand;
 import me.redteapot.rebot.commands.StopCommand;
 import me.redteapot.rebot.frontend.MessageReader.ReaderException;
@@ -148,7 +149,12 @@ public class CommandDispatcher {
         reader.skip(Character::isWhitespace);
 
         if (reader.canRead()) {
-            context.respond("There's some junk at the end of the command. Please fix it.");
+            StringBuilder response = new StringBuilder();
+            response.append("There are unexpected characters at the end of the command. Please fix it.\n");
+            response.append("```");
+            response.append(Strings.comment(reader.getMessage(), "Here", reader.getPosition(), reader.getMessage().length(), 10));
+            response.append("```");
+            context.respond(response.toString());
             return;
         }
 
