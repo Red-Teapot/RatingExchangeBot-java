@@ -13,7 +13,7 @@ public class Chars {
     }
 
     public static boolean isQuote(char c) {
-        return c == '\'' || c == '"';
+        return c == '\'' || c == '"' || c == '`';
     }
 
     public static boolean isAsciiIdentifier(char c) {

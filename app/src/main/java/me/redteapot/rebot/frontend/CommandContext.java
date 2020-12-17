@@ -5,6 +5,8 @@ import discord4j.core.event.domain.message.MessageCreateEvent;
 import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.MessageChannel;
 import lombok.Getter;
+import me.redteapot.rebot.Markdown;
+import me.redteapot.rebot.Strings;
 
 public class CommandContext {
     @Getter
@@ -23,11 +25,16 @@ public class CommandContext {
         this.channel = event.getMessage().getChannel().block();
     }
 
-    public void respond(String response) {
+    public void respond(String response, Object... args) {
+        String formatted = Strings.format(response, args);
         String fixedResponse = message.getAuthor()
-            .map(user -> user.getMention() + " " + response)
+            .map(user -> user.getMention() + " " + formatted)
             .orElse(response);
 
         channel.createMessage(fixedResponse).block();
+    }
+
+    public void respond(Markdown response) {
+        respond(response.toString());
     }
 }

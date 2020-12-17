@@ -4,7 +4,18 @@ import org.slf4j.helpers.MessageFormatter;
 
 public class Strings {
     public static String format(String fmt, Object... args) {
-        return MessageFormatter.format(fmt, args).getMessage();
+        return MessageFormatter.arrayFormat(fmt, args).getMessage();
+    }
+
+    public static String softSubstring(String source, int start, int end) {
+        int realStart = Math.max(0, start);
+        int realEnd = end >= 0 ? Math.min(source.length(), end) : source.length();
+
+        if (realEnd < realStart) {
+            return "";
+        }
+
+        return source.substring(realStart, realEnd);
     }
 
     public static String comment(String source, String comment, int position, int gaps) {
@@ -16,11 +27,17 @@ public class Strings {
 
         int pointerOffset = position - displayStart;
 
-        return new StringBuilder()
+        StringBuilder result = new StringBuilder()
             .append(source, displayStart, displayEnd).append('\n')
-            .append(" ".repeat(pointerOffset)).append("^\n")
-            .append(" ".repeat(pointerOffset)).append(comment).append("\n")
-            .toString();
+            .append(" ".repeat(pointerOffset)).append("^\n");
+        if (comment != null) {
+            result.append(" ".repeat(pointerOffset)).append(comment).append("\n");
+        }
+        return result.toString();
+    }
+
+    public static String comment(String source, int position, int gap) {
+        return comment(source, null, position, gap);
     }
 
     public static String comment(String source, String comment, int start, int end, int gaps) {
@@ -55,10 +72,16 @@ public class Strings {
             }
         }
 
-        result.append(" ".repeat(highlightLastLineOffset));
-        result.append(comment).append('\n');
+        if (comment != null) {
+            result.append(" ".repeat(highlightLastLineOffset));
+            result.append(comment).append('\n');
+        }
 
         return result.toString();
+    }
+
+    public static String comment(String source, int start, int end, int gap) {
+        return comment(source, null, start, end, gap);
     }
 
     private static int findLineStart(String source, int position) {

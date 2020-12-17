@@ -11,7 +11,7 @@ public class Identifier implements ArgumentParser<String> {
         String result = reader.read(Chars::isAsciiIdentifier);
 
         if (result.isBlank()) {
-            throw new ReaderUnexpectedCharException(reader.getMessage(), reader.getPosition());
+            throw new ReaderUnexpectedCharException(reader.getMessage(), reader.getPosition(), "identifier");
         }
 
         return result;

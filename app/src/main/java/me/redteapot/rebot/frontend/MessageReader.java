@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import me.redteapot.rebot.IntoMarkdown;
 import me.redteapot.rebot.Markdown;
 import me.redteapot.rebot.Strings;
 
@@ -11,6 +12,8 @@ import java.util.function.Predicate;
 
 import static me.redteapot.rebot.Checks.require;
 import static me.redteapot.rebot.Checks.unreachable;
+import static me.redteapot.rebot.Markdown.md;
+import static me.redteapot.rebot.Strings.format;
 
 /**
  * A reader class for Discord messages.
@@ -175,10 +178,10 @@ public class MessageReader {
      * @param predicate The predicate to check the expected char.
      * @throws ReaderException If can't read or the char doesn't match {@code predicate}.
      */
-    public void expect(Predicate<Character> predicate) throws ReaderException {
+    public void expect(Predicate<Character> predicate, String comment) throws ReaderException {
         assertCanRead();
         if (!predicate.test(peek())) {
-            throw new ReaderUnexpectedCharException(message, position);
+            throw new ReaderUnexpectedCharException(message, position, comment);
         }
         skip();
     }
@@ -224,7 +227,7 @@ public class MessageReader {
      */
     public boolean optional(Predicate<Character> predicate) {
         try {
-            expect(predicate);
+            expect(predicate, "");
             return true;
         } catch (ReaderException e) {
             return false;
@@ -264,13 +267,13 @@ public class MessageReader {
     @EqualsAndHashCode(callSuper = false)
     @Data
     @AllArgsConstructor
-    public static class ReaderException extends Exception implements Markdown {
+    public static class ReaderException extends Exception implements IntoMarkdown {
         protected final String source;
         protected final int position;
 
         @Override
-        public String markdown() {
-            return "Syntax error.";
+        public Markdown markdown() {
+            return md("Syntax error.");
         }
     }
 
@@ -280,34 +283,35 @@ public class MessageReader {
      */
     public static class ReaderUnexpectedCharException extends ReaderException {
         protected final Character expected;
+        protected final String comment;
 
         public ReaderUnexpectedCharException(String source, int position, Character expected) {
             super(source, position);
             this.expected = expected;
+            this.comment = null;
         }
 
-        public ReaderUnexpectedCharException(String source, int position) {
+        public ReaderUnexpectedCharException(String source, int position, String comment) {
             super(source, position);
             this.expected = null;
+            this.comment = comment;
         }
 
         @Override
-        public String markdown() {
+        public Markdown markdown() {
             int realPos = position + 1;
             char realChar = source.charAt(position);
 
-            StringBuilder message = new StringBuilder();
+            String error;
             if (expected == null) {
-                message.append(String.format("Unexpected char: `%c` at %d.", realChar, realPos));
+                error = format("Unexpected char: `{}`, {} expected.", realChar, comment);
             } else {
-                message.append(String.format("Unexpected char: `%c` at %d, '%c' expected.", realChar, realPos, expected));
+                error = format("Unexpected char: `{}`, `{}` expected.", realChar, expected);
             }
 
-            message.append("\n```");
-            message.append(Strings.comment(source, "Here", position, 10));
-            message.append("```");
-
-            return message.toString();
+            Markdown markdown = new Markdown();
+            markdown.code(Strings.comment(source, error, position, 10));
+            return markdown;
         }
     }
 
@@ -323,32 +327,16 @@ public class MessageReader {
             this.expected = expected;
         }
 
-        public ReaderUnexpectedStringException(String source, int position) {
-            super(source, position);
-            this.expected = null;
-        }
-
         @Override
-        public String markdown() {
-            int realPos = position + 1;
-            char realChar = source.charAt(position);
+        public Markdown markdown() {
+            int expectedEnd = position + expected.length();
+            String realString = Strings.softSubstring(source, position, expectedEnd);
 
-            StringBuilder message = new StringBuilder();
-            if (expected == null) {
-                message.append(String.format("Unexpected string: `%s` at %d.", realChar, realPos));
-                message.append("\n```");
-                message.append(Strings.comment(source, "Here", position, 10));
-                message.append("```");
-            } else {
-                int expectedEnd = Math.max(source.length(), position + expected.length());
-                String realString = source.substring(position, expectedEnd);
-                message.append(String.format("Unexpected string: `%s` at %d, '%s' expected.", realString, realPos, expected));
-                message.append("\n```");
-                message.append(Strings.comment(source, "Here", position, expectedEnd, 10));
-                message.append("```");
-            }
+            Markdown message = new Markdown();
+            String error = format("Unexpected string: `{}`, `{}` expected.", realString, expected);
+            message.code(Strings.comment(source, error, position, expectedEnd, 10));
 
-            return message.toString();
+            return message;
         }
     }
 
@@ -362,8 +350,8 @@ public class MessageReader {
         }
 
         @Override
-        public String markdown() {
-            return "Unexpected end of message.";
+        public Markdown markdown() {
+            return md("Unexpected end of message.");
         }
     }
 }

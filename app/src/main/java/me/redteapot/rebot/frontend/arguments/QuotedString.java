@@ -10,7 +10,7 @@ public class QuotedString implements ArgumentParser<String> {
     @Override
     public String parse(MessageReader reader) throws ReaderException {
         char quote = reader.peek();
-        reader.expect(Chars::isQuote);
+        reader.expect(Chars::isQuote, "quote");
 
         final StringBuilder result = new StringBuilder();
         boolean escape = false;

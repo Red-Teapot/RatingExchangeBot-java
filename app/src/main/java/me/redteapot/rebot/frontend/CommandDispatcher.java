@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.Config;
+import me.redteapot.rebot.Markdown;
 import me.redteapot.rebot.Strings;
 import me.redteapot.rebot.commands.HelpCommand;
 import me.redteapot.rebot.commands.StopCommand;
@@ -58,18 +59,23 @@ public class CommandDispatcher {
             return;
         }
 
-        log.debug("Got a command: '{}'", evt.getMessage().getContent());
+        log.debug("Got a command: '{}'", message);
 
         reader.skip(Character::isWhitespace);
 
         String commandName = reader.read(Chars::isAsciiIdentifier);
         if (commandName.isBlank()) {
-            context.respond("I guess there should be a command, but there is none. Ignoring.");
+            Markdown markdown = new Markdown("Unknown command or wrong syntax:");
+            markdown.code(Strings.comment(reader.getMessage(),
+                reader.getPosition(),
+                reader.getMessage().length(),
+                10));
+            context.respond(markdown);
             return;
         }
 
         if (!commands.containsKey(commandName)) {
-            context.respond("Unknown command, please fix it and try again.");
+            context.respond("Unknown command: `{}`.", commandName);
             return;
         }
 
@@ -78,10 +84,10 @@ public class CommandDispatcher {
         try {
             execute(reader, context, commands.get(commandName));
         } catch (ReaderException e) {
-            StringBuilder response = new StringBuilder();
-            response.append("There was an error while reading your command:\n");
-            response.append(e.markdown());
-            context.respond(response.toString());
+            Markdown response = new Markdown();
+            response.line("There was an error while reading your command:");
+            response.concat(e.markdown());
+            context.respond(response);
         } catch (Exception e) {
             log.error("Exception during command execution", e);
             context.respond("Sorry, there was an internal error while executing the command.");
@@ -117,21 +123,25 @@ public class CommandDispatcher {
         while (!unfilledNamedArguments.isEmpty()) {
             int position = reader.getPosition();
             String name;
+
             try {
                 name = new Identifier().parse(reader);
             } catch (ReaderException e) {
                 reader.rewind(position);
                 break;
             }
+
             if (!unfilledNamedArguments.contains(name)) {
-                context.respond("Duplicate/unknown argument name: " + name);
+                context.respond("Duplicate or invalid argument name: `{}`.", name);
                 return;
             }
+
             reader.expect('=');
             NamedArgumentInfo info = commandInfo.getNamedArguments().get(name);
             position = reader.getPosition();
             @SuppressWarnings("rawtypes")
             ArgumentParser parser = info.getParser().getConstructor().newInstance();
+
             try {
                 info.getField().set(command, parser.parse(reader));
                 unfilledNamedArguments.remove(name);
@@ -143,18 +153,18 @@ public class CommandDispatcher {
                     throw e;
                 }
             }
+
             reader.skip(Character::isWhitespace);
         }
 
         reader.skip(Character::isWhitespace);
 
         if (reader.canRead()) {
-            StringBuilder response = new StringBuilder();
-            response.append("There are unexpected characters at the end of the command. Please fix it.\n");
-            response.append("```");
-            response.append(Strings.comment(reader.getMessage(), "Here", reader.getPosition(), reader.getMessage().length(), 10));
-            response.append("```");
-            context.respond(response.toString());
+            Markdown markdown = new Markdown();
+            markdown.code(Strings.comment(reader.getMessage(),
+                "There are unexpected characters at the end of the command.",
+                reader.getPosition(), reader.getMessage().length(), 10));
+            context.respond(markdown);
             return;
         }
 
