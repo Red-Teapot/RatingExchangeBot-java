@@ -8,5 +8,17 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface BotCommand {
+    /**
+     * A name used to call this command in Discord.
+     * Must be an ASCII identifier, i.e. consist only of English letters,
+     * digits and underscores.
+     */
     String name();
+
+    /**
+     * Permission level required to run this command.
+     *
+     * @see Permissions
+     */
+    Permissions permissions();
 }

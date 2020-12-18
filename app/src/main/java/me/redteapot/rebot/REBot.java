@@ -22,6 +22,7 @@ public class REBot {
         ensure(config != null, "Config object is null");
 
         log.debug("Bot prefix: '{}'", config.getPrefix());
+        log.debug("Bot owners: {}", config.getOwners());
 
         final GatewayDiscordClient client = DiscordClientBuilder
             .create(config.getDiscord().getToken()).build().login().block();

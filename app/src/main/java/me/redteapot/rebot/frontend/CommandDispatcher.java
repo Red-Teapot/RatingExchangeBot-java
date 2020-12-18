@@ -3,6 +3,8 @@ package me.redteapot.rebot.frontend;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.message.MessageCreateEvent;
+import discord4j.core.object.entity.Member;
+import discord4j.rest.util.Permission;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import me.redteapot.rebot.frontend.MessageReader.ReaderException;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.OrderedArgument;
+import me.redteapot.rebot.frontend.annotations.Permissions;
 import me.redteapot.rebot.frontend.arguments.Identifier;
 import me.redteapot.rebot.frontend.arguments.UserMention;
 
@@ -24,6 +27,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static me.redteapot.rebot.Checks.require;
+import static me.redteapot.rebot.Checks.unreachable;
 
 @Slf4j
 public class CommandDispatcher {
@@ -97,9 +101,53 @@ public class CommandDispatcher {
     private void execute(MessageReader reader,
                          CommandContext context,
                          CommandInfo commandInfo) throws Exception {
+        if (!isUserAllowedToRun(commandInfo, context)) {
+            context.respond("You are not allowed to run this command.");
+            return;
+        }
+
         Command command = commandInfo.getClazz().getConstructor().newInstance();
         command.context = context;
 
+        fillOrderedArguments(command, commandInfo, reader);
+        reader.skip(Character::isWhitespace);
+        fillNamedArguments(command, commandInfo, reader, context);
+        reader.skip(Character::isWhitespace);
+
+        if (reader.canRead()) {
+            Markdown markdown = new Markdown();
+            markdown.code(Strings.comment(reader.getMessage(),
+                "There are unexpected characters at the end of the command.",
+                reader.getPosition(), reader.getMessage().length(), 10));
+            context.respond(markdown);
+            return;
+        }
+
+        command.execute();
+    }
+
+    private boolean isUserAllowedToRun(CommandInfo commandInfo, CommandContext context) {
+        Member author;
+        switch (commandInfo.getPermissions()) {
+            case GENERAL:
+                return true;
+            case SERVER_ADMIN:
+                author = context.getMessage().getAuthorAsMember().block();
+                return author.getBasePermissions().block()
+                    .contains(Permission.ADMINISTRATOR);
+            case BOT_OWNER:
+                author = context.getMessage().getAuthorAsMember().block();
+                String authorTag = author.getTag();
+                return config.getOwners().contains(authorTag);
+            default:
+                unreachable("Not all permissions are checked");
+                return false;
+        }
+    }
+
+    private void fillOrderedArguments(Command command,
+                                      CommandInfo commandInfo,
+                                      MessageReader reader) throws Exception {
         for (OrderedArgumentInfo info : commandInfo.getOrderedArguments()) {
             reader.skip(Character::isWhitespace);
             final int position = reader.getPosition();
@@ -115,10 +163,13 @@ public class CommandDispatcher {
                     throw e;
                 }
             }
-            reader.skip(Character::isWhitespace);
         }
-        reader.skip(Character::isWhitespace);
+    }
 
+    private void fillNamedArguments(Command command,
+                                    CommandInfo commandInfo,
+                                    MessageReader reader,
+                                    CommandContext context) throws Exception {
         Set<String> unfilledNamedArguments = new HashSet<>(commandInfo.getNamedArguments().keySet());
         while (!unfilledNamedArguments.isEmpty()) {
             int position = reader.getPosition();
@@ -156,19 +207,6 @@ public class CommandDispatcher {
 
             reader.skip(Character::isWhitespace);
         }
-
-        reader.skip(Character::isWhitespace);
-
-        if (reader.canRead()) {
-            Markdown markdown = new Markdown();
-            markdown.code(Strings.comment(reader.getMessage(),
-                "There are unexpected characters at the end of the command.",
-                reader.getPosition(), reader.getMessage().length(), 10));
-            context.respond(markdown);
-            return;
-        }
-
-        command.execute();
     }
 
     private void register(Class<? extends Command> command) {
@@ -206,9 +244,11 @@ public class CommandDispatcher {
         private final Class<? extends Command> clazz;
         private final List<OrderedArgumentInfo> orderedArguments;
         private final Map<String, NamedArgumentInfo> namedArguments;
+        private final Permissions permissions;
 
         private CommandInfo(Class<? extends Command> clazz) {
             this.clazz = clazz;
+            this.permissions = clazz.getAnnotation(BotCommand.class).permissions();
 
             this.orderedArguments = Arrays.stream(clazz.getFields())
                 .filter(f -> f.getAnnotation(OrderedArgument.class) != null)
