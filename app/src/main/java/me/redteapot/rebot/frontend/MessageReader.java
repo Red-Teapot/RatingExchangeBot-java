@@ -124,6 +124,7 @@ public class MessageReader {
 
     /**
      * Reads chars while {@code skipPredicate} is true and the reader can read.
+     * The returned string might be empty.
      *
      * @param readPredicate The predicate that should return true if the char
      *                      should be read.
@@ -139,6 +140,30 @@ public class MessageReader {
         } catch (ReaderException e) {
             return unreachable("MessageReader.read(predicate) got a ReaderException: {}", e);
         }
+    }
+
+    /**
+     * Reads chars while {@code skipPredicate} is true and the reader can read.
+     * Throws a {@link ReaderException} if no characters matching the
+     * predicate can be read.
+     *
+     * @param readPredicate The predicate that should return true if the char
+     *                      should be read.
+     * @param comment       The comment to show if unexpected character occurs.
+     * @return The read string.
+     */
+    public String readNonEmpty(Predicate<Character> readPredicate, String comment) throws ReaderException {
+        String result = read(readPredicate);
+
+        if (result.isEmpty()) {
+            if (canRead()) {
+                throw new ReaderUnexpectedCharException(getMessage(), getPosition(), comment);
+            } else {
+                throw new UnexpectedEndOfMessageException(getMessage(), getPosition());
+            }
+        }
+
+        return result;
     }
 
     /**

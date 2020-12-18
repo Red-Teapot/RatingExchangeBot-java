@@ -19,7 +19,7 @@ public abstract class Mention implements ArgumentParser<Snowflake> {
 
         prefixCheck.check(reader);
 
-        final long id = Long.parseLong(reader.read(Chars::isAsciiDigit));
+        final long id = Long.parseLong(reader.readNonEmpty(Chars::isAsciiDigit, "digit"));
 
         reader.expect('>');
 
