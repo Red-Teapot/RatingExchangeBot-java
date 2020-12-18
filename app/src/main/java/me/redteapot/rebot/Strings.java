@@ -19,6 +19,7 @@ public class Strings {
     }
 
     public static String comment(String source, String comment, int position, int gaps) {
+        // FIXME Maybe it can be simplified
         int lineStart = findLineStart(source, position);
         int lineEnd = findLineEnd(source, position);
 
@@ -41,6 +42,7 @@ public class Strings {
     }
 
     public static String comment(String source, String comment, int start, int end, int gaps) {
+        // FIXME Maybe it can be simplified
         int lineStart = findLineStart(source, start);
         int lineEnd = findLineEnd(source, end);
 

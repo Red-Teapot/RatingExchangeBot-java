@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import me.redteapot.rebot.IntoMarkdown;
 import me.redteapot.rebot.Markdown;
 import me.redteapot.rebot.Strings;
 
@@ -259,6 +258,12 @@ public class MessageReader {
         }
     }
 
+    /**
+     * Changes current position. The new position
+     * must be less than or equal to the current position.
+     *
+     * @param position The new position.
+     */
     public void rewind(int position) {
         require(position <= this.position, "New position must be less than or equal to the current one");
         this.position = position;
@@ -292,11 +297,10 @@ public class MessageReader {
     @EqualsAndHashCode(callSuper = false)
     @Data
     @AllArgsConstructor
-    public static class ReaderException extends Exception implements IntoMarkdown {
+    public static class ReaderException extends Exception {
         protected final String source;
         protected final int position;
 
-        @Override
         public Markdown markdown() {
             return md("Syntax error.");
         }

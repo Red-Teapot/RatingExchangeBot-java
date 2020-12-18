@@ -43,6 +43,13 @@ public class Checks {
         }
     }
 
+    /**
+     * Marks a line that should be never executed. Throws an
+     * {@link IllegalStateException} when ran.
+     *
+     * @param message The message to show.
+     * @param args    Formatting arguments.
+     */
     public static <T> T unreachable(String message, Object... args) {
         throw new IllegalStateException(format(message, args));
     }
