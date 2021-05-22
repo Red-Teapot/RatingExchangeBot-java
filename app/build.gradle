@@ -19,7 +19,9 @@ dependencies {
     // Discord bot API
     implementation 'com.discord4j:discord4j-core:3.1.2'
     // Database stuff
-    implementation 'org.jooq:jooq:3.14.4'
+    implementation 'org.dizitart:nitrite:3.4.3'
+    // Constraint solver
+    implementation 'org.optaplanner:optaplanner-core:8.0.0.Final'
 
     testImplementation 'junit:junit:4.13'
 }

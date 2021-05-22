@@ -9,6 +9,8 @@ import java.util.List;
 public class Config {
     private Discord discord;
 
+    private Database database;
+
     private String prefix = "";
 
     private List<String> owners = new ArrayList<>();
@@ -16,5 +18,10 @@ public class Config {
     @Data
     public static class Discord {
         private String token;
+    }
+
+    @Data
+    public static class Database {
+        private String file = "rebot.db";
     }
 }

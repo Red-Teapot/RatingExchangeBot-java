@@ -5,6 +5,7 @@ import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.message.MessageCreateEvent;
 import discord4j.core.object.entity.Member;
 import discord4j.rest.util.Permission;
+import discord4j.rest.util.PermissionSet;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.Config;
 import me.redteapot.rebot.Markdown;
 import me.redteapot.rebot.Strings;
+import me.redteapot.rebot.commands.CreateExchangeCommand;
 import me.redteapot.rebot.commands.HelpCommand;
 import me.redteapot.rebot.commands.StopCommand;
 import me.redteapot.rebot.frontend.MessageReader.ReaderException;
@@ -23,11 +25,11 @@ import me.redteapot.rebot.frontend.arguments.Identifier;
 import me.redteapot.rebot.frontend.arguments.UserMention;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static me.redteapot.rebot.Checks.require;
-import static me.redteapot.rebot.Checks.unreachable;
+import static me.redteapot.rebot.Checks.*;
 
 @Slf4j
 public class CommandDispatcher {
@@ -43,6 +45,7 @@ public class CommandDispatcher {
 
         register(HelpCommand.class);
         register(StopCommand.class);
+        register(CreateExchangeCommand.class);
 
         client.on(MessageCreateEvent.class).subscribe(this::onMessage);
 
@@ -63,7 +66,7 @@ public class CommandDispatcher {
             return;
         }
 
-        log.debug("Got a command: '{}'", message);
+        log.debug("Got a command: '{}', {}", message, reader.getPosition());
 
         reader.skip(Character::isWhitespace);
 
@@ -127,21 +130,21 @@ public class CommandDispatcher {
     }
 
     private boolean isUserAllowedToRun(CommandInfo commandInfo, CommandContext context) {
-        Member author;
+        Member author = context.getMessage().getAuthorAsMember().block();
+        ensure(author != null, "Message author is null");
+
         switch (commandInfo.getPermissions()) {
             case GENERAL:
                 return true;
             case SERVER_ADMIN:
-                author = context.getMessage().getAuthorAsMember().block();
-                return author.getBasePermissions().block()
-                    .contains(Permission.ADMINISTRATOR);
+                // TODO Maybe check a configured Discord role
+                PermissionSet authorPermissions = author.getBasePermissions().block();
+                ensure(authorPermissions != null, "Author permissions is null");
+                return authorPermissions.contains(Permission.ADMINISTRATOR);
             case BOT_OWNER:
-                author = context.getMessage().getAuthorAsMember().block();
-                String authorTag = author.getTag();
-                return config.getOwners().contains(authorTag);
+                return config.getOwners().contains(author.getTag());
             default:
-                unreachable("Not all permissions are checked");
-                return false;
+                return unreachable("Not all permissions are checked");
         }
     }
 
@@ -187,7 +190,9 @@ public class CommandDispatcher {
                 return;
             }
 
+            reader.skip(Character::isWhitespace);
             reader.expect('=');
+            reader.skip(Character::isWhitespace);
             NamedArgumentInfo info = commandInfo.getNamedArguments().get(name);
             position = reader.getPosition();
             @SuppressWarnings("rawtypes")
@@ -207,6 +212,10 @@ public class CommandDispatcher {
 
             reader.skip(Character::isWhitespace);
         }
+
+        if (!unfilledNamedArguments.isEmpty()) {
+            context.respond("Required named arguments are not provided: {}", String.join(", ", unfilledNamedArguments));
+        }
     }
 
     private void register(Class<? extends Command> command) {
@@ -220,6 +229,10 @@ public class CommandDispatcher {
             "Invalid command name: {} for {}", name, command);
         require(!commands.containsKey(name),
             "Duplicate command name: {} for {}", name, command);
+        require(Arrays.stream(command.getDeclaredFields())
+                .filter(f -> f.getAnnotation(OrderedArgument.class) != null || f.getAnnotation(NamedArgument.class) != null)
+                .allMatch(f -> Modifier.isPublic(f.getModifiers())),
+            "Command argument fields must be all public");
 
         commands.put(name, new CommandInfo(command));
 

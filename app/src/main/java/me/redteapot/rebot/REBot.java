@@ -4,22 +4,23 @@ import com.moandjiezana.toml.Toml;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
 import lombok.extern.slf4j.Slf4j;
+import me.redteapot.rebot.data.Database;
 import me.redteapot.rebot.frontend.CommandDispatcher;
 
 import java.io.File;
 
 import static me.redteapot.rebot.Checks.ensure;
+import static me.redteapot.rebot.Checks.require;
 
 @Slf4j
 public class REBot {
     public static void main(String[] args) {
-        if (args.length != 1) {
-            log.error("No config file provided!");
-            return;
-        }
+        require(args.length == 1, "No config file provided");
 
         Config config = new Toml().read(new File(args[0])).to(Config.class);
         ensure(config != null, "Config object is null");
+
+        Database.init(config.getDatabase());
 
         log.debug("Bot prefix: '{}'", config.getPrefix());
         log.debug("Bot owners: {}", config.getOwners());
@@ -32,6 +33,7 @@ public class REBot {
         final CommandDispatcher commandDispatcher = new CommandDispatcher(config, client);
 
         client.onDisconnect().block();
+        Database.close();
         log.info("Stopped");
     }
 }
