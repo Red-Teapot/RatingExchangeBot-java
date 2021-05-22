@@ -9,9 +9,7 @@ import me.redteapot.rebot.frontend.Command;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.Permissions;
-import me.redteapot.rebot.frontend.arguments.ChannelMention;
-import me.redteapot.rebot.frontend.arguments.Identifier;
-import me.redteapot.rebot.frontend.arguments.SimpleInteger;
+import me.redteapot.rebot.frontend.arguments.*;
 import org.dizitart.no2.objects.ObjectRepository;
 
 import java.time.Duration;
@@ -53,26 +51,28 @@ public class CreateExchangeCommand extends Command {
     /**
      * The start of the first round.
      */
-    @NamedArgument(type = SimpleInteger.class, name = "start", optional = true)
+    @NamedArgument(type = ZonedDateTimeArg.class, name = "start", optional = true)
     public ZonedDateTime start = ZonedDateTime.now(ZoneId.of("UTC"));
 
     /**
      * Duration of the period when the bot is accepting submissions.
      */
-    @NamedArgument(type = SimpleInteger.class, name = "submissionDuration", optional = true)
+    @NamedArgument(type = DurationArg.class, name = "submissionDuration", optional = true)
     public Duration submissionDuration = Duration.ofHours(24);
 
     /**
      * Duration of the period after stopping accepting submissions and before
      * sending assignments.
      */
-    @NamedArgument(type = SimpleInteger.class, name = "graceDuration", optional = true)
+    @NamedArgument(type = DurationArg.class, name = "graceDuration", optional = true)
     public Duration graceDuration = Duration.ofHours(0);
 
     @Override
     public void execute() {
         ObjectRepository<Exchange> exchangeRepo = Database.getRepository(Exchange.class);
         ObjectRepository<ExchangeRound> roundRepo = Database.getRepository(ExchangeRound.class);
+
+        context.respond("Start date: {}", start);
 
         Exchange exchange = new Exchange(context.getMessage().getGuildId().get(), name, submissionChannel);
         exchangeRepo.insert(exchange);

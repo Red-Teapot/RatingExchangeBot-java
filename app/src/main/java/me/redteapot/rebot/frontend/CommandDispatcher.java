@@ -9,20 +9,19 @@ import discord4j.rest.util.PermissionSet;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import me.redteapot.rebot.Chars;
-import me.redteapot.rebot.Config;
-import me.redteapot.rebot.Markdown;
-import me.redteapot.rebot.Strings;
+import me.redteapot.rebot.*;
 import me.redteapot.rebot.commands.CreateExchangeCommand;
 import me.redteapot.rebot.commands.HelpCommand;
 import me.redteapot.rebot.commands.StopCommand;
-import me.redteapot.rebot.frontend.MessageReader.ReaderException;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.OrderedArgument;
 import me.redteapot.rebot.frontend.annotations.Permissions;
 import me.redteapot.rebot.frontend.arguments.Identifier;
 import me.redteapot.rebot.frontend.arguments.UserMention;
+import me.redteapot.rebot.frontend.exceptions.InvalidArgumentNameException;
+import me.redteapot.rebot.frontend.exceptions.NamedArgumentsNotProvidedException;
+import me.redteapot.rebot.frontend.exceptions.ReaderException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -90,10 +89,10 @@ public class CommandDispatcher {
 
         try {
             execute(reader, context, commands.get(commandName));
-        } catch (ReaderException e) {
+        } catch (CommandException e) {
             Markdown response = new Markdown();
-            response.line("There was an error while reading your command:");
-            response.concat(e.markdown());
+            response.line("There was an error while executing your command:");
+            response.concat(e.describe());
             context.respond(response);
         } catch (Exception e) {
             log.error("Exception during command execution", e);
@@ -114,7 +113,7 @@ public class CommandDispatcher {
 
         fillOrderedArguments(command, commandInfo, reader);
         reader.skip(Character::isWhitespace);
-        fillNamedArguments(command, commandInfo, reader, context);
+        fillNamedArguments(command, commandInfo, reader);
         reader.skip(Character::isWhitespace);
 
         if (reader.canRead()) {
@@ -171,8 +170,7 @@ public class CommandDispatcher {
 
     private void fillNamedArguments(Command command,
                                     CommandInfo commandInfo,
-                                    MessageReader reader,
-                                    CommandContext context) throws Exception {
+                                    MessageReader reader) throws Exception {
         Set<String> unfilledNamedArguments = new HashSet<>(commandInfo.getNamedArguments().keySet());
         while (!unfilledNamedArguments.isEmpty()) {
             int position = reader.getPosition();
@@ -186,35 +184,29 @@ public class CommandDispatcher {
             }
 
             if (!unfilledNamedArguments.contains(name)) {
-                context.respond("Duplicate or invalid argument name: `{}`.", name);
-                return;
+                throw new InvalidArgumentNameException(name);
             }
 
             reader.skip(Character::isWhitespace);
             reader.expect('=');
             reader.skip(Character::isWhitespace);
             NamedArgumentInfo info = commandInfo.getNamedArguments().get(name);
-            position = reader.getPosition();
             @SuppressWarnings("rawtypes")
             ArgumentParser parser = info.getParser().getConstructor().newInstance();
 
-            try {
-                info.getField().set(command, parser.parse(reader));
-                unfilledNamedArguments.remove(name);
-            } catch (ReaderException e) {
-                if (info.isOptional()) {
-                    reader.rewind(position);
-                    break;
-                } else {
-                    throw e;
-                }
-            }
+            info.getField().set(command, parser.parse(reader));
+            unfilledNamedArguments.remove(name);
 
             reader.skip(Character::isWhitespace);
         }
 
-        if (!unfilledNamedArguments.isEmpty()) {
-            context.respond("Required named arguments are not provided: {}", String.join(", ", unfilledNamedArguments));
+        Set<String> unfilledRequiredArguments = unfilledNamedArguments
+            .stream()
+            .filter(arg -> !commandInfo.getNamedArguments().get(arg).optional)
+            .collect(Collectors.toSet());
+
+        if (!unfilledRequiredArguments.isEmpty()) {
+            throw new NamedArgumentsNotProvidedException(unfilledRequiredArguments);
         }
     }
 
