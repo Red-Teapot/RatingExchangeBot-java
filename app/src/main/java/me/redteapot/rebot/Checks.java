@@ -19,17 +19,6 @@ public class Checks {
     }
 
     /**
-     * Asserts that given condition is true.
-     *
-     * @param condition The condition to check.
-     * @param message   The message to show if the check fails.
-     * @param args      Message formatting arguments.
-     */
-    public static void assertion(boolean condition, String message, Object... args) {
-        assert condition : format(message, args);
-    }
-
-    /**
      * Checks given condition and throws {@link IllegalStateException}
      * if it is false.
      *
