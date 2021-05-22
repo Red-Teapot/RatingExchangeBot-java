@@ -192,7 +192,6 @@ public class MessageReader {
         if (!read(s.length()).equals(s)) {
             throw new ReaderUnexpectedStringException(message, position, s);
         }
-        skip(s.length());
     }
 
     /**
@@ -234,10 +233,12 @@ public class MessageReader {
      * @return True if matches, false otherwise.
      */
     public boolean optional(String s) {
+        int pos = getPosition();
         try {
             expect(s);
             return true;
         } catch (ReaderException e) {
+            rewind(pos);
             return false;
         }
     }
