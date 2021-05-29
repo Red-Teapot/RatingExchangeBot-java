@@ -11,10 +11,14 @@ import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.Permissions;
 import me.redteapot.rebot.frontend.arguments.*;
 import org.dizitart.no2.objects.ObjectRepository;
+import org.dizitart.no2.objects.filters.ObjectFilters;
 
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Optional;
+
+import static me.redteapot.rebot.Checks.ensure;
 
 /**
  * The command to create rating exchanges.
@@ -72,9 +76,19 @@ public class CreateExchangeCommand extends Command {
         ObjectRepository<Exchange> exchangeRepo = Database.getRepository(Exchange.class);
         ObjectRepository<ExchangeRound> roundRepo = Database.getRepository(ExchangeRound.class);
 
-        context.respond("Start date: {}", start);
+        Optional<Snowflake> currentGuildOpt = context.getMessage().getGuildId();
+        ensure(currentGuildOpt.isPresent(), "Guild id not present");
+        Snowflake currentGuild = currentGuildOpt.get();
 
-        Exchange exchange = new Exchange(context.getMessage().getGuildId().get(), name, submissionChannel);
+        if (exchangeRepo.find(ObjectFilters.and(
+            ObjectFilters.eq("name", name),
+            ObjectFilters.eq("guild", currentGuild)
+        )).size() > 0) {
+            context.respond("Exchange with name `{}` already exists on this server.", name);
+            return;
+        }
+
+        Exchange exchange = new Exchange(currentGuild, name, submissionChannel);
         exchangeRepo.insert(exchange);
 
         Duration totalRoundDuration = submissionDuration.plus(graceDuration);
@@ -91,6 +105,8 @@ public class CreateExchangeCommand extends Command {
             roundRepo.insert(round);
         }
 
-        context.respond("Exchange with name {} created.", exchange.getName());
+        context.getScheduler().reschedule();
+
+        context.respond("Exchange with name `{}` created.", exchange.getName());
     }
 }

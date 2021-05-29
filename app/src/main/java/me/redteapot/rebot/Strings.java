@@ -1,12 +1,6 @@
 package me.redteapot.rebot;
 
-import org.slf4j.helpers.MessageFormatter;
-
 public class Strings {
-    public static String format(String fmt, Object... args) {
-        return MessageFormatter.arrayFormat(fmt, args).getMessage();
-    }
-
     public static String softSubstring(String source, int start, int end) {
         int realStart = Math.max(0, start);
         int realEnd = end >= 0 ? Math.min(source.length(), end) : source.length();

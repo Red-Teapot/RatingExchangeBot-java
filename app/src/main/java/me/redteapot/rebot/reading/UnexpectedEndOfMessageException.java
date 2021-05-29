@@ -1,7 +1,6 @@
-package me.redteapot.rebot.frontend.exceptions;
+package me.redteapot.rebot.reading;
 
 import me.redteapot.rebot.Markdown;
-import me.redteapot.rebot.frontend.MessageReader;
 
 import static me.redteapot.rebot.Markdown.md;
 

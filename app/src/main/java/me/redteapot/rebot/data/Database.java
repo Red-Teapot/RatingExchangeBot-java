@@ -2,7 +2,9 @@ package me.redteapot.rebot.data;
 
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.Config;
+import me.redteapot.rebot.data.serde.DurationSerde;
 import me.redteapot.rebot.data.serde.SnowflakeSerde;
+import me.redteapot.rebot.data.serde.ZonedDateTimeSerde;
 import org.dizitart.no2.Nitrite;
 import org.dizitart.no2.objects.ObjectRepository;
 
@@ -17,6 +19,8 @@ public final class Database {
     private Database(Config.Database config) {
         this.nitrite = Nitrite.builder()
             .registerModule(new SnowflakeSerde())
+            .registerModule(new ZonedDateTimeSerde())
+            .registerModule(new DurationSerde())
             .filePath(config.getFile())
             .openOrCreate();
     }

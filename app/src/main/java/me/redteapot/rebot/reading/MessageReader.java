@@ -1,10 +1,6 @@
-package me.redteapot.rebot.frontend;
+package me.redteapot.rebot.reading;
 
 import lombok.Getter;
-import me.redteapot.rebot.frontend.exceptions.ReaderException;
-import me.redteapot.rebot.frontend.exceptions.UnexpectedCharException;
-import me.redteapot.rebot.frontend.exceptions.UnexpectedEndOfMessageException;
-import me.redteapot.rebot.frontend.exceptions.UnexpectedStringException;
 
 import java.util.function.Predicate;
 
@@ -12,7 +8,7 @@ import static me.redteapot.rebot.Checks.require;
 import static me.redteapot.rebot.Checks.unreachable;
 
 /**
- * A reader class for Discord messages.
+ * A reader class for text messages.
  */
 @SuppressWarnings("unused")
 public class MessageReader {

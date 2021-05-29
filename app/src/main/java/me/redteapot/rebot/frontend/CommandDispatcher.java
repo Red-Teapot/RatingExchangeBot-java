@@ -21,7 +21,8 @@ import me.redteapot.rebot.frontend.arguments.Identifier;
 import me.redteapot.rebot.frontend.arguments.UserMention;
 import me.redteapot.rebot.frontend.exceptions.InvalidArgumentNameException;
 import me.redteapot.rebot.frontend.exceptions.NamedArgumentsNotProvidedException;
-import me.redteapot.rebot.frontend.exceptions.ReaderException;
+import me.redteapot.rebot.reading.MessageReader;
+import me.redteapot.rebot.reading.ReaderException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -36,11 +37,13 @@ public class CommandDispatcher {
     private final GatewayDiscordClient client;
     private final Map<String, CommandInfo> commands = new HashMap<>();
     private final Snowflake selfID;
+    private final AssignmentScheduler scheduler;
 
-    public CommandDispatcher(Config config, GatewayDiscordClient client) {
+    public CommandDispatcher(Config config, GatewayDiscordClient client, AssignmentScheduler scheduler) {
         this.config = config;
         this.client = client;
         this.selfID = client.getSelfId();
+        this.scheduler = scheduler;
 
         register(HelpCommand.class);
         register(StopCommand.class);
@@ -58,7 +61,7 @@ public class CommandDispatcher {
 
         String message = evt.getMessage().getContent();
         MessageReader reader = new MessageReader(message);
-        CommandContext context = new CommandContext(client, evt);
+        CommandContext context = new CommandContext(client, evt, scheduler);
         reader.skip(Character::isWhitespace);
 
         if (!checkPrefix(reader)) {

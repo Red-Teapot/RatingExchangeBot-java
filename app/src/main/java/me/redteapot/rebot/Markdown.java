@@ -1,6 +1,7 @@
 package me.redteapot.rebot;
 
 import lombok.NoArgsConstructor;
+import me.redteapot.rebot.formatting.Formatter;
 
 @NoArgsConstructor
 public class Markdown {
@@ -16,7 +17,7 @@ public class Markdown {
     }
 
     public Markdown line(String text, Object... args) {
-        compiled.append(Strings.format(text, args)).append('\n');
+        compiled.append(Formatter.format(text, args)).append('\n');
         return this;
     }
 

@@ -2,9 +2,9 @@ package me.redteapot.rebot.frontend.arguments;
 
 import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.frontend.ArgumentParser;
-import me.redteapot.rebot.frontend.MessageReader;
-import me.redteapot.rebot.frontend.exceptions.ReaderException;
-import me.redteapot.rebot.frontend.exceptions.UnexpectedEndOfMessageException;
+import me.redteapot.rebot.reading.MessageReader;
+import me.redteapot.rebot.reading.ReaderException;
+import me.redteapot.rebot.reading.UnexpectedEndOfMessageException;
 
 public class QuotedString implements ArgumentParser<String> {
     @Override

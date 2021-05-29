@@ -1,4 +1,4 @@
-package me.redteapot.rebot.frontend.exceptions;
+package me.redteapot.rebot.reading;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -6,7 +6,6 @@ import lombok.EqualsAndHashCode;
 import me.redteapot.rebot.CommandException;
 import me.redteapot.rebot.Markdown;
 import me.redteapot.rebot.Strings;
-import me.redteapot.rebot.frontend.MessageReader;
 
 /**
  * A general {@link MessageReader} exception.

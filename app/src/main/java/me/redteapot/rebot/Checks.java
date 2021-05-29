@@ -1,6 +1,6 @@
 package me.redteapot.rebot;
 
-import static me.redteapot.rebot.Strings.format;
+import static me.redteapot.rebot.formatting.Formatter.format;
 
 @SuppressWarnings("unused")
 public class Checks {

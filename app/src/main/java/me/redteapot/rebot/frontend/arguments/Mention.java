@@ -3,8 +3,8 @@ package me.redteapot.rebot.frontend.arguments;
 import discord4j.common.util.Snowflake;
 import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.frontend.ArgumentParser;
-import me.redteapot.rebot.frontend.MessageReader;
-import me.redteapot.rebot.frontend.exceptions.ReaderException;
+import me.redteapot.rebot.reading.MessageReader;
+import me.redteapot.rebot.reading.ReaderException;
 
 public abstract class Mention implements ArgumentParser<Snowflake> {
     private final PrefixCheck prefixCheck;

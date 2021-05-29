@@ -2,9 +2,9 @@ package me.redteapot.rebot.frontend.arguments;
 
 import me.redteapot.rebot.Chars;
 import me.redteapot.rebot.frontend.ArgumentParser;
-import me.redteapot.rebot.frontend.MessageReader;
-import me.redteapot.rebot.frontend.exceptions.ReaderException;
-import me.redteapot.rebot.frontend.exceptions.UnexpectedStringException;
+import me.redteapot.rebot.reading.MessageReader;
+import me.redteapot.rebot.reading.ReaderException;
+import me.redteapot.rebot.reading.UnexpectedStringException;
 
 import java.time.DateTimeException;
 import java.time.ZoneId;

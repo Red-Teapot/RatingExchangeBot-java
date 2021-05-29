@@ -9,6 +9,7 @@ public class StopCommand extends Command {
     @Override
     public void execute() {
         context.respond("Stopping.");
+        context.getScheduler().close();
         context.getClient().logout().block();
     }
 }
