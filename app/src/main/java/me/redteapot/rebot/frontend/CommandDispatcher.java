@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.*;
 import me.redteapot.rebot.commands.CreateExchangeCommand;
 import me.redteapot.rebot.commands.HelpCommand;
-import me.redteapot.rebot.commands.StopCommand;
+import me.redteapot.rebot.commands.ShutdownCommand;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.OrderedArgument;
@@ -46,7 +46,7 @@ public class CommandDispatcher {
         this.scheduler = scheduler;
 
         register(HelpCommand.class);
-        register(StopCommand.class);
+        register(ShutdownCommand.class);
         register(CreateExchangeCommand.class);
 
         client.on(MessageCreateEvent.class).subscribe(this::onMessage);
