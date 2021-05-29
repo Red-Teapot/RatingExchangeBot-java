@@ -4,7 +4,6 @@ import discord4j.common.util.Snowflake;
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.data.Database;
 import me.redteapot.rebot.data.models.Exchange;
-import me.redteapot.rebot.data.models.ExchangeRound;
 import me.redteapot.rebot.frontend.Command;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.NamedArgument;
@@ -74,7 +73,6 @@ public class CreateExchangeCommand extends Command {
     @Override
     public void execute() {
         ObjectRepository<Exchange> exchangeRepo = Database.getRepository(Exchange.class);
-        ObjectRepository<ExchangeRound> roundRepo = Database.getRepository(ExchangeRound.class);
 
         Optional<Snowflake> currentGuildOpt = context.getMessage().getGuildId();
         ensure(currentGuildOpt.isPresent(), "Guild id not present");
@@ -88,22 +86,17 @@ public class CreateExchangeCommand extends Command {
             return;
         }
 
-        Exchange exchange = new Exchange(currentGuild, name, submissionChannel);
+        Exchange exchange = new Exchange(
+            currentGuild,
+            name,
+            submissionChannel,
+            0,
+            Exchange.State.BEFORE_SUBMISSIONS,
+            gamesPerMember,
+            start,
+            submissionDuration,
+            graceDuration);
         exchangeRepo.insert(exchange);
-
-        Duration totalRoundDuration = submissionDuration.plus(graceDuration);
-
-        for (int i = 0; i < rounds; i++) {
-            ZonedDateTime roundStart = start.plus(totalRoundDuration.multipliedBy(i));
-            ExchangeRound round = new ExchangeRound(
-                exchange.getId(),
-                gamesPerMember,
-                roundStart,
-                submissionDuration,
-                graceDuration,
-                ExchangeRound.State.BEFORE_SUBMISSIONS);
-            roundRepo.insert(round);
-        }
 
         context.getScheduler().reschedule();
 

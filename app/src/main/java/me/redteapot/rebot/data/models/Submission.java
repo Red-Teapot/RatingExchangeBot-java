@@ -15,14 +15,16 @@ public class Submission {
     @Id
     private NitriteId id;
 
-    private NitriteId roundID;
+    private NitriteId exchangeID;
+    private int round;
     private String link;
     private Snowflake member;
     private ZonedDateTime submissionDatetime;
 
-    public Submission(NitriteId roundID, String link,
+    public Submission(NitriteId exchangeID, int round, String link,
                       Snowflake member, ZonedDateTime submissionDatetime) {
-        this.roundID = roundID;
+        this.exchangeID = exchangeID;
+        this.round = round;
         this.link = link;
         this.member = member;
         this.submissionDatetime = submissionDatetime;

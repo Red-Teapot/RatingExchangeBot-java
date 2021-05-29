@@ -18,9 +18,8 @@ public class ZonedDateTimeFormatter implements TypeFormatter<ZonedDateTime> {
         .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
         .appendLiteral(':')
         .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
-        .appendLiteral(" (")
+        .appendLiteral(' ')
         .appendZoneId()
-        .appendLiteral(')')
         .toFormatter();
 
     @Override

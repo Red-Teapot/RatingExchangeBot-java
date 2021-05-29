@@ -6,7 +6,6 @@ import discord4j.core.object.entity.channel.GuildMessageChannel;
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.data.Database;
 import me.redteapot.rebot.data.models.Exchange;
-import me.redteapot.rebot.data.models.ExchangeRound;
 import org.dizitart.no2.FindOptions;
 import org.dizitart.no2.SortOrder;
 import org.dizitart.no2.objects.Cursor;
@@ -26,13 +25,14 @@ import static org.dizitart.no2.objects.filters.ObjectFilters.*;
 
 @Slf4j
 public class AssignmentScheduler implements Closeable, Runnable {
+    private static final int SCHEDULE_OFFSET = 5;
+
     private final GatewayDiscordClient client;
 
     private final ScheduledExecutorService executor;
     private ScheduledFuture<?> future;
 
     private final ObjectRepository<Exchange> exchangeRepo = Database.getRepository(Exchange.class);
-    private final ObjectRepository<ExchangeRound> roundRepo = Database.getRepository(ExchangeRound.class);
 
     public AssignmentScheduler(GatewayDiscordClient client) {
         this.client = client;
@@ -57,42 +57,43 @@ public class AssignmentScheduler implements Closeable, Runnable {
     public void run() {
         ZonedDateTime now = ZonedDateTime.now();
 
-        Cursor<ExchangeRound> rounds = roundRepo.find(
-            and(not(eq("state", ExchangeRound.State.ASSIGNMENTS_SENT)),
+        Cursor<Exchange> exchanges = exchangeRepo.find(
+            and(not(eq("state", Exchange.State.FINISHED)),
                 lte("nextInvokeTime", now)));
 
-        for (ExchangeRound round : rounds) {
-            log.debug("Processing round {}", round.getId());
-            processRound(round);
+        for (Exchange exchange : exchanges) {
+            log.debug("Processing round {} of exchange {}", exchange.getRound(), exchange.getId());
+            processExchangeRound(exchange);
         }
 
         schedule();
     }
 
-    private void processRound(ExchangeRound round) {
-        Exchange exchange = exchangeRepo.getById(round.getExchangeID());
+    private void processExchangeRound(Exchange exchange) {
         Guild guild = client.getGuildById(exchange.getGuild()).block();
         ensure(guild != null, "Guild is null");
         GuildMessageChannel channel = (GuildMessageChannel) guild.getChannelById(exchange.getSubmissionChannel()).block();
         ensure(channel != null, "Channel is null");
 
-        switch (round.getState()) {
+        switch (exchange.getState()) {
             case BEFORE_SUBMISSIONS:
                 Markdown message = md("Submissions for **{}** start now!", exchange.getName())
-                    .line("You have {} to submit your games (submissions end at {}).", round.getSubmissionDuration(), round.getStartDateTime().plus(round.getSubmissionDuration()))
-                    .line("Use the following command: `<prefix> submit {} <your game link>`", exchange.getName());
+                    .line("You have {} to submit your games (submissions end at {}).",
+                        exchange.getSubmissionDuration(),
+                        exchange.getGraceStart())
+                    .line("Use the following command: `@REBot submit {} <your game link>`", exchange.getName());
                 channel.createMessage(message.toString()).block();
-                round.setState(ExchangeRound.State.ACCEPTING_SUBMISSIONS);
+                exchange.setState(Exchange.State.ACCEPTING_SUBMISSIONS);
                 break;
         }
 
-        roundRepo.update(round);
+        exchangeRepo.update(exchange);
     }
 
     private void schedule() {
         ZonedDateTime now = ZonedDateTime.now();
-        ExchangeRound next = roundRepo.find(
-            and(not(eq("state", ExchangeRound.State.ASSIGNMENTS_SENT)),
+        Exchange next = exchangeRepo.find(
+            and(not(eq("state", Exchange.State.FINISHED)),
                 gte("nextInvokeTime", now)),
             FindOptions.sort("nextInvokeTime", SortOrder.Ascending))
             .firstOrDefault();
@@ -106,10 +107,11 @@ public class AssignmentScheduler implements Closeable, Runnable {
             future.cancel(false);
         }
 
-        long delay = now.until(next.getNextInvokeTime(), ChronoUnit.SECONDS);
+        ZonedDateTime nextInvokeTime = next.getNextInvokeTime().plus(SCHEDULE_OFFSET, ChronoUnit.SECONDS);
+        long delay = now.until(nextInvokeTime, ChronoUnit.SECONDS);
         future = executor.schedule(this, delay, TimeUnit.SECONDS);
 
-        log.debug("Scheduled next invocation on {} ({} seconds from now)", next.getNextInvokeTime(), delay);
+        log.debug("Scheduled next invocation on {} ({} seconds from now)", next, delay);
     }
 
     @Override

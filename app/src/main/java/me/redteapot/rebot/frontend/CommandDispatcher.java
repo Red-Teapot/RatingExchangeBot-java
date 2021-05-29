@@ -13,6 +13,7 @@ import me.redteapot.rebot.*;
 import me.redteapot.rebot.commands.CreateExchangeCommand;
 import me.redteapot.rebot.commands.HelpCommand;
 import me.redteapot.rebot.commands.ShutdownCommand;
+import me.redteapot.rebot.commands.SubmitCommand;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.OrderedArgument;
@@ -48,6 +49,7 @@ public class CommandDispatcher {
         register(HelpCommand.class);
         register(ShutdownCommand.class);
         register(CreateExchangeCommand.class);
+        register(SubmitCommand.class);
 
         client.on(MessageCreateEvent.class).subscribe(this::onMessage);
 
