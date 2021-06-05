@@ -1,6 +1,7 @@
 package me.redteapot.rebot.commands;
 
 import discord4j.common.util.Snowflake;
+import discord4j.core.object.entity.User;
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.data.Database;
 import me.redteapot.rebot.data.models.Exchange;
@@ -10,14 +11,18 @@ import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.OrderedArgument;
 import me.redteapot.rebot.frontend.annotations.Permissions;
 import me.redteapot.rebot.frontend.arguments.Identifier;
-import me.redteapot.rebot.frontend.arguments.QuotedString;
-import org.dizitart.no2.objects.ObjectRepository;
+import me.redteapot.rebot.frontend.arguments.URLArg;
 
+import javax.persistence.EntityManager;
+import javax.persistence.EntityTransaction;
+import javax.persistence.Query;
+import java.net.URL;
 import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.Optional;
 
+import static me.redteapot.rebot.Checks.ensure;
 import static me.redteapot.rebot.Markdown.md;
-import static org.dizitart.no2.objects.filters.ObjectFilters.and;
-import static org.dizitart.no2.objects.filters.ObjectFilters.eq;
 
 /**
  * The command to submit a game to rating exchange.
@@ -34,64 +39,69 @@ public class SubmitCommand extends Command {
     /**
      * Link to your game.
      */
-    @OrderedArgument(type = QuotedString.class, order = 1)
-    public String gameLink;
+    @OrderedArgument(type = URLArg.class, order = 1)
+    public URL gameLink;
 
     @Override
     public void execute() {
-        ObjectRepository<Exchange> exchangeRepo = Database.getRepository(Exchange.class);
-        ObjectRepository<Submission> submissionRepo = Database.getRepository(Submission.class);
+        EntityManager exchangeManager = Database.getInstance().getEntityManager(Exchange.class);
+        EntityManager submissionManager = Database.getInstance().getEntityManager(Submission.class);
 
-        Exchange exchange = exchangeRepo.find(eq("name", exchangeName)).firstOrDefault();
+        Query query = exchangeManager.createQuery("SELECT e FROM Exchange e WHERE e.name = :name");
+        query.setParameter("name", exchangeName);
+        List<Exchange> exchanges = query.getResultList();
 
-        if (exchange == null) {
-            context.respond(md("Exchange with name `{}` does not exist.", exchangeName));
+        ensure(exchanges.size() <= 1, "Too many exchanges: {}", exchanges);
+
+        if (exchanges.isEmpty()) {
+            context.respond("Exchange `{}` does not exist.", exchangeName);
             return;
         }
 
-        if (!context.getChannel().getId().equals(exchange.getSubmissionChannel())) {
-            context.respond(md("Wrong channel. Please post your submissions for `{}` in <#{}>",
-                exchange.getName(),
-                exchange.getSubmissionChannel().asString()));
+        Exchange exchange = exchanges.get(0);
+
+        if (!exchange.getSubmissionChannel().equals(context.getChannel().getId())) {
+            context.respond("Please post your submissions in <#{}>", exchange.getSubmissionChannel().asString());
             return;
         }
 
-        if (!exchange.getState().equals(Exchange.State.ACCEPTING_SUBMISSIONS)) {
-            context.respond(md("Exchange `{}` is not accepting submissions right now.", exchangeName));
+        if (exchange.getState() != Exchange.State.ACCEPTING_SUBMISSIONS) {
+            context.respond("Given exchange is not accepting submissions right now.");
             return;
         }
 
-        int round = exchange.getRound();
-        ZonedDateTime submissionTime = ZonedDateTime.now();
-        Snowflake member = context.getMessage().getAuthor().get().getId();
+        Optional<User> author = context.getMessage().getAuthor();
+        ensure(author.isPresent(), "Author is not present");
+        Snowflake member = author.get().getId();
 
-        Submission submission = submissionRepo.find(and(
-            eq("exchangeID", exchange.getId()),
-            eq("round", round),
-            eq("member", member)
-        )).firstOrDefault();
+        EntityTransaction submissionTransaction = submissionManager.getTransaction();
+        submissionTransaction.begin();
+        query = submissionManager.createQuery("SELECT s FROM Submission s WHERE s.exchange = :exchange AND s.round = :round AND s.member = :member");
+        query.setParameter("exchange", exchange);
+        query.setParameter("round", exchange.getRound());
+        query.setParameter("member", member);
+        List<Submission> submissions = query.getResultList();
+        ensure(submissions.size() <= 1, "Too many submissions for {}", member);
 
-        // TODO Validate game link
-        gameLink = gameLink.strip();
-
-        if (submission == null) {
-            submission = new Submission(
-                exchange.getId(),
-                round,
-                gameLink,
-                member,
-                submissionTime);
-            submissionRepo.insert(submission);
-            context.respond(md("Successfully submitted!"));
-        } else {
-            String oldLink = submission.getLink();
-
-            submission.setLink(gameLink);
-            submission.setSubmissionDatetime(submissionTime);
-            submissionRepo.update(submission);
-
-            context.respond(md("Updated your submission.")
-                .line("Previous one was: {}", oldLink));
+        final Submission submission;
+        try {
+            if (submissions.isEmpty()) {
+                submission = new Submission(exchange, exchange.getRound(), gameLink, member, ZonedDateTime.now());
+                submissionManager.persist(submission);
+                context.respond(md("Got it!"));
+            } else {
+                submission = submissions.get(0);
+                context.respond(md("Updated your previous submission, which was {}", submission.getLink()));
+                submission.setLink(gameLink);
+                submissionManager.merge(submission);
+            }
+            submissionTransaction.commit();
+        } catch (Throwable e) {
+            submissionTransaction.rollback();
+            throw e;
+        } finally {
+            exchangeManager.close();
+            submissionManager.close();
         }
     }
 }

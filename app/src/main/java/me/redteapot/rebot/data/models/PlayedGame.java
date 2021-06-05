@@ -4,19 +4,23 @@ import discord4j.common.util.Snowflake;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.dizitart.no2.NitriteId;
-import org.dizitart.no2.objects.Id;
 
+import javax.persistence.*;
+import java.net.URL;
+
+@Entity
+@Table(indexes = @Index(name = "unique", columnList = "member, link", unique = true))
 @Data
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PlayedGame {
     @Id
-    private NitriteId id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
 
     private Snowflake member;
-    private String link;
+    private URL link;
 
-    public PlayedGame(Snowflake member, String link) {
+    public PlayedGame(Snowflake member, URL link) {
         this.member = member;
         this.link = link;
     }

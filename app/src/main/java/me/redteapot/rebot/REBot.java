@@ -30,7 +30,7 @@ public class REBot {
         ensure(client != null, "Discord client is null");
         log.info("Connected");
 
-        final AssignmentScheduler scheduler = new AssignmentScheduler(client);
+        final AssignmentScheduler scheduler = new AssignmentScheduler(client, config);
         final CommandDispatcher commandDispatcher = new CommandDispatcher(config, client, scheduler);
 
         client.onDisconnect().block();

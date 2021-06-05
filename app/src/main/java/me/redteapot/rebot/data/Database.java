@@ -2,11 +2,10 @@ package me.redteapot.rebot.data;
 
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.Config;
-import me.redteapot.rebot.data.serde.DurationSerde;
-import me.redteapot.rebot.data.serde.SnowflakeSerde;
-import me.redteapot.rebot.data.serde.ZonedDateTimeSerde;
-import org.dizitart.no2.Nitrite;
-import org.dizitart.no2.objects.ObjectRepository;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
 
 import static me.redteapot.rebot.Checks.ensure;
 
@@ -14,26 +13,17 @@ import static me.redteapot.rebot.Checks.ensure;
 public final class Database {
     private static Database instance;
 
-    private final Nitrite nitrite;
+    private final EntityManagerFactory factory;
 
     private Database(Config.Database config) {
-        this.nitrite = Nitrite.builder()
-            .registerModule(new SnowflakeSerde())
-            .registerModule(new ZonedDateTimeSerde())
-            .registerModule(new DurationSerde())
-            .filePath(config.getFile())
-            .openOrCreate();
+        factory = Persistence.createEntityManagerFactory("REBot");
     }
 
-    public static <T> ObjectRepository<T> getRepository(Class<T> type) {
-        return getInstance().nitrite.getRepository(type);
+    public <T> EntityManager getEntityManager(Class<T> clazz) {
+        return factory.createEntityManager();
     }
 
-    public static Nitrite getNitrite() {
-        return getInstance().nitrite;
-    }
-
-    private static Database getInstance() {
+    public static Database getInstance() {
         ensure(instance != null, "Requested Database instance before init");
         return instance;
     }
@@ -43,6 +33,6 @@ public final class Database {
     }
 
     public static void close() {
-        getInstance().nitrite.close();
+        getInstance().factory.close();
     }
 }

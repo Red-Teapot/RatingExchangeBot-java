@@ -4,26 +4,34 @@ import discord4j.common.util.Snowflake;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.dizitart.no2.NitriteId;
-import org.dizitart.no2.objects.Id;
 
+import javax.persistence.*;
+import java.net.URL;
 import java.time.ZonedDateTime;
 
+@Entity
+@Table(indexes = {
+    @Index(name = "uniqueByLink", columnList = "exchange_id, round, link", unique = true),
+    @Index(name = "uniqueByMember", columnList = "exchange_id, round, member", unique = true),
+})
 @Data
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Submission {
     @Id
-    private NitriteId id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
 
-    private NitriteId exchangeID;
+    @ManyToOne
+    private Exchange exchange;
     private int round;
-    private String link;
+    private URL link;
+
     private Snowflake member;
     private ZonedDateTime submissionDatetime;
 
-    public Submission(NitriteId exchangeID, int round, String link,
+    public Submission(Exchange exchange, int round, URL link,
                       Snowflake member, ZonedDateTime submissionDatetime) {
-        this.exchangeID = exchangeID;
+        this.exchange = exchange;
         this.round = round;
         this.link = link;
         this.member = member;

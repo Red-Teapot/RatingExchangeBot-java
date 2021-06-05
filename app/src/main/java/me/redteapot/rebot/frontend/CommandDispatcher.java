@@ -4,16 +4,14 @@ import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.message.MessageCreateEvent;
 import discord4j.core.object.entity.Member;
+import discord4j.core.object.entity.User;
 import discord4j.rest.util.Permission;
 import discord4j.rest.util.PermissionSet;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.*;
-import me.redteapot.rebot.commands.CreateExchangeCommand;
-import me.redteapot.rebot.commands.HelpCommand;
-import me.redteapot.rebot.commands.ShutdownCommand;
-import me.redteapot.rebot.commands.SubmitCommand;
+import me.redteapot.rebot.commands.*;
 import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.OrderedArgument;
@@ -46,10 +44,14 @@ public class CommandDispatcher {
         this.selfID = client.getSelfId();
         this.scheduler = scheduler;
 
-        register(HelpCommand.class);
         register(ShutdownCommand.class);
+
+        register(HelpCommand.class);
+
         register(CreateExchangeCommand.class);
+
         register(SubmitCommand.class);
+        register(PlayedCommand.class);
 
         client.on(MessageCreateEvent.class).subscribe(this::onMessage);
 
@@ -134,19 +136,28 @@ public class CommandDispatcher {
     }
 
     private boolean isUserAllowedToRun(CommandInfo commandInfo, CommandContext context) {
-        Member author = context.getMessage().getAuthorAsMember().block();
-        ensure(author != null, "Message author is null");
+        final boolean isDM = context.getMessage().getGuildId().isEmpty();
+        if (isDM && !commandInfo.allowedInDM) {
+            return false;
+        }
 
         switch (commandInfo.getPermissions()) {
             case GENERAL:
                 return true;
             case SERVER_ADMIN:
+                if (isDM) {
+                    return false;
+                }
+                Member authorMember = context.getMessage().getAuthorAsMember().block();
+                ensure(authorMember != null, "Author member is null");
                 // TODO Maybe check a configured Discord role
-                PermissionSet authorPermissions = author.getBasePermissions().block();
+                PermissionSet authorPermissions = authorMember.getBasePermissions().block();
                 ensure(authorPermissions != null, "Author permissions is null");
                 return authorPermissions.contains(Permission.ADMINISTRATOR);
             case BOT_OWNER:
-                return config.getOwners().contains(author.getTag());
+                ensure(context.getMessage().getAuthor().isPresent(), "DM author not present");
+                User authorUser = context.getMessage().getAuthor().get();
+                return config.getOwners().contains(authorUser.getTag());
             default:
                 return unreachable("Not all permissions are checked");
         }
@@ -255,10 +266,12 @@ public class CommandDispatcher {
         private final List<OrderedArgumentInfo> orderedArguments;
         private final Map<String, NamedArgumentInfo> namedArguments;
         private final Permissions permissions;
+        private final boolean allowedInDM;
 
         private CommandInfo(Class<? extends Command> clazz) {
             this.clazz = clazz;
             this.permissions = clazz.getAnnotation(BotCommand.class).permissions();
+            this.allowedInDM = clazz.getAnnotation(BotCommand.class).allowedInDM();
 
             this.orderedArguments = Arrays.stream(clazz.getFields())
                 .filter(f -> f.getAnnotation(OrderedArgument.class) != null)

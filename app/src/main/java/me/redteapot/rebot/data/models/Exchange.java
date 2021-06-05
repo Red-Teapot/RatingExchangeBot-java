@@ -4,20 +4,23 @@ import discord4j.common.util.Snowflake;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.dizitart.no2.NitriteId;
-import org.dizitart.no2.objects.Id;
 
+import javax.persistence.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
+@Entity
+@Table(indexes = @Index(name = "unique", columnList = "guild, name", unique = true))
 @Data
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Exchange {
     @Id
-    private NitriteId id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
 
     private Snowflake guild;
     private String name;
+
     private Snowflake submissionChannel;
 
     private int round;
@@ -104,7 +107,6 @@ public class Exchange {
             case GRACE_PERIOD:
                 nextInvokeTime = roundStartTime.plus(submissionDuration).plus(graceDuration);
                 break;
-            case ASSIGNMENTS_SENT:
             case FINISHED:
                 // Nothing to do
                 break;
@@ -115,7 +117,6 @@ public class Exchange {
         BEFORE_SUBMISSIONS,
         ACCEPTING_SUBMISSIONS,
         GRACE_PERIOD,
-        ASSIGNMENTS_SENT,
         FINISHED,
     }
 }

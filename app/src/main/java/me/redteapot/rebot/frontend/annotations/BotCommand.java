@@ -21,4 +21,9 @@ public @interface BotCommand {
      * @see Permissions
      */
     Permissions permissions();
+
+    /**
+     * Specifies whether or not the bot accepts this command in DM.
+     */
+    boolean allowedInDM() default false;
 }

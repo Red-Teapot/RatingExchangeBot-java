@@ -9,15 +9,17 @@ import me.redteapot.rebot.frontend.annotations.BotCommand;
 import me.redteapot.rebot.frontend.annotations.NamedArgument;
 import me.redteapot.rebot.frontend.annotations.Permissions;
 import me.redteapot.rebot.frontend.arguments.*;
-import org.dizitart.no2.objects.ObjectRepository;
-import org.dizitart.no2.objects.filters.ObjectFilters;
 
+import javax.persistence.EntityManager;
+import javax.persistence.EntityTransaction;
+import javax.persistence.PersistenceException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
 import static me.redteapot.rebot.Checks.ensure;
+import static me.redteapot.rebot.Markdown.md;
 
 /**
  * The command to create rating exchanges.
@@ -72,34 +74,35 @@ public class CreateExchangeCommand extends Command {
 
     @Override
     public void execute() {
-        ObjectRepository<Exchange> exchangeRepo = Database.getRepository(Exchange.class);
+        Optional<Snowflake> guild = context.getMessage().getGuildId();
+        ensure(guild.isPresent(), "Current guild ID not present");
 
-        Optional<Snowflake> currentGuildOpt = context.getMessage().getGuildId();
-        ensure(currentGuildOpt.isPresent(), "Guild id not present");
-        Snowflake currentGuild = currentGuildOpt.get();
+        EntityManager manager = Database.getInstance().getEntityManager(Exchange.class);
+        EntityTransaction transaction = manager.getTransaction();
+        transaction.begin();
 
-        if (exchangeRepo.find(ObjectFilters.and(
-            ObjectFilters.eq("name", name),
-            ObjectFilters.eq("guild", currentGuild)
-        )).size() > 0) {
-            context.respond("Exchange with name `{}` already exists on this server.", name);
-            return;
+        try {
+            manager.persist(new Exchange(
+                guild.get(),
+                name,
+                submissionChannel,
+                rounds,
+                Exchange.State.BEFORE_SUBMISSIONS,
+                gamesPerMember,
+                start,
+                submissionDuration,
+                graceDuration));
+            transaction.commit();
+            context.getScheduler().reschedule();
+            context.respond(md("Exchange `{}` created.", name));
+        } catch (PersistenceException ignored) {
+            transaction.rollback();
+            context.respond(md("Exchange with name `{}` already exists on this server", name));
+        } catch (Throwable e) {
+            transaction.rollback();
+            throw e;
+        } finally {
+            manager.close();
         }
-
-        Exchange exchange = new Exchange(
-            currentGuild,
-            name,
-            submissionChannel,
-            0,
-            Exchange.State.BEFORE_SUBMISSIONS,
-            gamesPerMember,
-            start,
-            submissionDuration,
-            graceDuration);
-        exchangeRepo.insert(exchange);
-
-        context.getScheduler().reschedule();
-
-        context.respond("Exchange with name `{}` created.", exchange.getName());
     }
 }
