@@ -12,8 +12,10 @@ public class URLArg implements ArgumentParser<URL> {
     @Override
     public URL parse(MessageReader reader) throws ReaderException {
         reader.skip(Character::isWhitespace);
+        reader.optional('<');
         int start = reader.getPosition();
-        String urlStr = reader.read(c -> !Character.isWhitespace(c));
+        String urlStr = reader.read(c -> !Character.isWhitespace(c) && c != '>');
+        reader.optional('>');
         try {
             return new URL(urlStr);
         } catch (MalformedURLException e) {
