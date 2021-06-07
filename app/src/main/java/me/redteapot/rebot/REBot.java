@@ -19,8 +19,9 @@ public class REBot {
 
         Config config = new Toml().read(new File(args[0])).to(Config.class);
         ensure(config != null, "Config object is null");
+        config.validate();
 
-        Database.init(config.getDatabase());
+        Database.init();
 
         log.debug("Bot prefix: '{}'", config.getPrefix());
         log.debug("Bot owners: {}", config.getOwners());

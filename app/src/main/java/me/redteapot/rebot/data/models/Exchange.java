@@ -23,8 +23,7 @@ public class Exchange {
 
     private Snowflake submissionChannel;
 
-    private int round;
-    private State state;
+    private int totalRounds;
 
     private int gamesPerMember;
 
@@ -32,46 +31,51 @@ public class Exchange {
     private Duration submissionDuration;
     private Duration graceDuration;
 
+    private int round;
+    private State state;
+
     private ZonedDateTime nextInvokeTime;
 
-    public Exchange(Snowflake guild, String name, Snowflake submissionChannel, int round, State state,
+    public Exchange(Snowflake guild, String name, Snowflake submissionChannel, int totalRounds, State state,
                     int gamesPerMember, ZonedDateTime startDateTime, Duration submissionDuration, Duration graceDuration) {
         this.guild = guild;
         this.name = name;
         this.submissionChannel = submissionChannel;
-        this.round = round;
-        this.state = state;
+        this.totalRounds = totalRounds;
         this.gamesPerMember = gamesPerMember;
         this.startDateTime = startDateTime;
         this.submissionDuration = submissionDuration;
         this.graceDuration = graceDuration;
 
-        updateNextInvokeTime();
+        this.round = 0;
+        this.state = state;
+
+        update();
     }
 
     public void setRound(int round) {
         this.round = round;
-        updateNextInvokeTime();
+        update();
     }
 
     public void setState(State state) {
         this.state = state;
-        updateNextInvokeTime();
+        update();
     }
 
     public void setStartDateTime(ZonedDateTime startDateTime) {
         this.startDateTime = startDateTime;
-        updateNextInvokeTime();
+        update();
     }
 
     public void setSubmissionDuration(Duration submissionDuration) {
         this.submissionDuration = submissionDuration;
-        updateNextInvokeTime();
+        update();
     }
 
     public void setGraceDuration(Duration graceDuration) {
         this.graceDuration = graceDuration;
-        updateNextInvokeTime();
+        update();
     }
 
     public Duration getTotalRoundDuration() {
@@ -90,7 +94,7 @@ public class Exchange {
         return getGraceStart().plus(graceDuration);
     }
 
-    private void updateNextInvokeTime() {
+    private void update() {
         if (startDateTime == null || submissionDuration == null || graceDuration == null) {
             return;
         }

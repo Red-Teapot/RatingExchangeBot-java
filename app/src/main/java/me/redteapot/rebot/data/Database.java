@@ -1,7 +1,6 @@
 package me.redteapot.rebot.data;
 
 import lombok.extern.slf4j.Slf4j;
-import me.redteapot.rebot.Config;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -15,7 +14,7 @@ public final class Database {
 
     private final EntityManagerFactory factory;
 
-    private Database(Config.Database config) {
+    private Database() {
         factory = Persistence.createEntityManagerFactory("REBot");
     }
 
@@ -28,8 +27,8 @@ public final class Database {
         return instance;
     }
 
-    public static void init(Config.Database config) {
-        instance = new Database(config);
+    public static void init() {
+        instance = new Database();
     }
 
     public static void close() {

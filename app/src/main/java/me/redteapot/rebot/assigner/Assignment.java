@@ -6,12 +6,14 @@ import lombok.NoArgsConstructor;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 
+import java.net.URL;
+
 @PlanningEntity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class Assignment {
-    private Game game;
+    private URL game;
     @PlanningVariable(valueRangeProviderRefs = {"members"})
     private Member member;
 }

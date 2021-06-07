@@ -25,7 +25,9 @@ import me.redteapot.rebot.reading.ReaderException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.net.URL;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static me.redteapot.rebot.Checks.*;
@@ -37,12 +39,15 @@ public class CommandDispatcher {
     private final Map<String, CommandInfo> commands = new HashMap<>();
     private final Snowflake selfID;
     private final AssignmentScheduler scheduler;
+    // FIXME
+    private final Pattern gameLinkPattern;
 
     public CommandDispatcher(Config config, GatewayDiscordClient client, AssignmentScheduler scheduler) {
         this.config = config;
         this.client = client;
         this.selfID = client.getSelfId();
         this.scheduler = scheduler;
+        this.gameLinkPattern = Pattern.compile(config.getGameLinkRegex());
 
         register(ShutdownCommand.class);
 
@@ -65,7 +70,7 @@ public class CommandDispatcher {
 
         String message = evt.getMessage().getContent();
         MessageReader reader = new MessageReader(message);
-        CommandContext context = new CommandContext(client, evt, scheduler);
+        CommandContext context = new CommandContext(client, evt, scheduler, this, config);
         reader.skip(Character::isWhitespace);
 
         if (!checkPrefix(reader)) {
@@ -258,6 +263,10 @@ public class CommandDispatcher {
         } else {
             return reader.optional(config.getPrefix());
         }
+    }
+
+    public boolean isGameLinkValid(URL link) {
+        return gameLinkPattern.matcher(link.toString()).matches();
     }
 
     @Data

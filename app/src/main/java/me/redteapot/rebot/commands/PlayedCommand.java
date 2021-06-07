@@ -25,6 +25,11 @@ public class PlayedCommand extends Command {
 
     @Override
     public void execute() {
+        if (!context.getDispatcher().isGameLinkValid(gameLink)) {
+            context.respond("Sorry, your link is invalid. Expected something like `{}`", context.getConfig().getGameLinkExample());
+            return;
+        }
+
         Optional<User> author = context.getMessage().getAuthor();
         ensure(author.isPresent(), "Author is not present");
         Snowflake member = author.get().getId();

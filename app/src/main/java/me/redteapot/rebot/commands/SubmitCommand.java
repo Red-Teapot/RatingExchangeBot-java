@@ -15,7 +15,7 @@ import me.redteapot.rebot.frontend.arguments.URLArg;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
-import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 import java.net.URL;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -47,9 +47,9 @@ public class SubmitCommand extends Command {
         EntityManager exchangeManager = Database.getInstance().getEntityManager(Exchange.class);
         EntityManager submissionManager = Database.getInstance().getEntityManager(Submission.class);
 
-        Query query = exchangeManager.createQuery("SELECT e FROM Exchange e WHERE e.name = :name");
-        query.setParameter("name", exchangeName);
-        List<Exchange> exchanges = query.getResultList();
+        TypedQuery<Exchange> exchangeQ = exchangeManager.createQuery("SELECT e FROM Exchange e WHERE e.name = :name", Exchange.class);
+        exchangeQ.setParameter("name", exchangeName);
+        List<Exchange> exchanges = exchangeQ.getResultList();
 
         ensure(exchanges.size() <= 1, "Too many exchanges: {}", exchanges);
 
@@ -65,6 +65,11 @@ public class SubmitCommand extends Command {
             return;
         }
 
+        if (!context.getDispatcher().isGameLinkValid(gameLink)) {
+            context.respond("Sorry, your link is invalid. Expected something like `{}`", context.getConfig().getGameLinkExample());
+            return;
+        }
+
         if (exchange.getState() != Exchange.State.ACCEPTING_SUBMISSIONS) {
             context.respond("Given exchange is not accepting submissions right now.");
             return;
@@ -76,11 +81,11 @@ public class SubmitCommand extends Command {
 
         EntityTransaction submissionTransaction = submissionManager.getTransaction();
         submissionTransaction.begin();
-        query = submissionManager.createQuery("SELECT s FROM Submission s WHERE s.exchange = :exchange AND s.round = :round AND s.member = :member");
-        query.setParameter("exchange", exchange);
-        query.setParameter("round", exchange.getRound());
-        query.setParameter("member", member);
-        List<Submission> submissions = query.getResultList();
+        TypedQuery<Submission> submissionQ = submissionManager.createQuery("SELECT s FROM Submission s WHERE s.exchange = :exchange AND s.round = :round AND s.member = :member", Submission.class);
+        submissionQ.setParameter("exchange", exchange);
+        submissionQ.setParameter("round", exchange.getRound());
+        submissionQ.setParameter("member", member);
+        List<Submission> submissions = submissionQ.getResultList();
         ensure(submissions.size() <= 1, "Too many submissions for {}", member);
 
         final Submission submission;
