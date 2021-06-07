@@ -96,7 +96,7 @@ public class SubmitCommand extends Command {
                 context.respond(md("Got it!"));
             } else {
                 submission = submissions.get(0);
-                context.respond(md("Updated your previous submission, which was {}", submission.getLink()));
+                context.respond(md("Updated your previous submission, which was <{}>", submission.getLink()));
                 submission.setLink(gameLink);
                 submissionManager.merge(submission);
             }
