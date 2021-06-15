@@ -106,9 +106,10 @@ public class SubmitCommand extends Command {
                 submissionManager.merge(submission);
             }
             submissionTransaction.commit();
-        } catch (PersistenceException ignored) {
+        } catch (PersistenceException e) {
             submissionTransaction.rollback();
             context.respond(md("This game is already submitted: <{}>", gameLink));
+            log.warn("Exception while executing submit command", e);
         } catch (Throwable e) {
             submissionTransaction.rollback();
             throw e;

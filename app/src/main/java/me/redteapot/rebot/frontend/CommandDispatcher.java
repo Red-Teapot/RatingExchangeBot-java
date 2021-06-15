@@ -78,7 +78,9 @@ public class CommandDispatcher {
             return;
         }
 
-        log.debug("Got a command: '{}', {}", message, reader.getPosition());
+        log.debug("Got a command from {}: '{}'",
+            context.getMessage().getAuthor().map(User::getId).orElse(null),
+            message);
 
         reader.skip(Character::isWhitespace);
 

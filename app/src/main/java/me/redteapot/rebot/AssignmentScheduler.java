@@ -231,6 +231,8 @@ public class AssignmentScheduler implements Closeable, Runnable {
                     message.line("{}. {}", i + 1, games.get(i));
                 }
                 message.line("Feel free to play the games, rate and comment them as you see fit. Thanks for participating!");
+                message.line("Note: if you decide to play some games on your own, you can register them using {} to avoid these being assigned to you. No need to register your assignments though - these are processed automatically.",
+                    addPrefixTo(" played <link to the game>"));
             }
 
             client.getUserById(member).block().getPrivateChannel().block().createMessage(message.toString()).block();

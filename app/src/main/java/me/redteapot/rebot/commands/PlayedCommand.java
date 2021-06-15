@@ -2,6 +2,7 @@ package me.redteapot.rebot.commands;
 
 import discord4j.common.util.Snowflake;
 import discord4j.core.object.entity.User;
+import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.data.Database;
 import me.redteapot.rebot.data.models.PlayedGame;
 import me.redteapot.rebot.frontend.Command;
@@ -18,6 +19,7 @@ import java.util.Optional;
 
 import static me.redteapot.rebot.Checks.ensure;
 
+@Slf4j
 @BotCommand(name = "played", permissions = Permissions.GENERAL, allowedInDM = true)
 public class PlayedCommand extends Command {
     @OrderedArgument(type = URLArg.class, order = 0)
@@ -41,9 +43,10 @@ public class PlayedCommand extends Command {
             playedGameManager.persist(new PlayedGame(member, gameLink, true));
             transaction.commit();
             context.respond("Got it!");
-        } catch (PersistenceException ignored) {
+        } catch (PersistenceException e) {
             transaction.rollback();
             context.respond("Already registered.");
+            log.warn("Exception while executing played command", e);
         } catch (Throwable e) {
             transaction.rollback();
             throw e;
