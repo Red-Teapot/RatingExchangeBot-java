@@ -50,13 +50,16 @@ public class Assigner {
 
     private int membersPerGame;
 
+    private Member dummy;
+
     public Assigner(List<Submission> submissions, List<Member> members, int gamesPerMember, int membersPerGame) {
         this.submissions = submissions;
         this.members = members;
         this.gamesPerMember = gamesPerMember;
         this.membersPerGame = membersPerGame;
 
-        this.members.add(new Member(null, new ArrayList<>()));
+        this.dummy = new Member(null, new ArrayList<>());
+        this.members.add(dummy);
     }
 
     public static Map<Snowflake, List<URL>> solve(Assigner assigner) {
@@ -73,7 +76,7 @@ public class Assigner {
         Solver<Assigner> solver = solverFactory.buildSolver();
         for (Submission submission : assigner.getSubmissions()) {
             for (int i = 0; i < assigner.getMembersPerGame(); i++) {
-                assigner.getAssignments().add(new Assignment(submission.getLink(), null));
+                assigner.getAssignments().add(new Assignment(submission.getLink(), assigner.getDummy()));
             }
         }
 

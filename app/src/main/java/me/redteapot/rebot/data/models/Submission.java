@@ -11,8 +11,8 @@ import java.time.ZonedDateTime;
 
 @Entity
 @Table(indexes = {
-    @Index(name = "uniqueByLink", columnList = "exchange_id, round, link", unique = true),
-    @Index(name = "uniqueByMember", columnList = "exchange_id, round, member", unique = true),
+    @Index(name = "uniqueSubmissionByLink", columnList = "exchange_id, round, link", unique = true),
+    @Index(name = "uniqueSubmissionByMember", columnList = "exchange_id, round, member", unique = true),
 })
 @Data
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

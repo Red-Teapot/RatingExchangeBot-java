@@ -54,6 +54,7 @@ public class CommandDispatcher {
         register(HelpCommand.class);
 
         register(CreateExchangeCommand.class);
+        register(DeleteExchangeCommand.class);
 
         register(SubmitCommand.class);
         register(PlayedCommand.class);
@@ -107,8 +108,20 @@ public class CommandDispatcher {
             response.concat(e.describe());
             context.respond(response);
         } catch (Exception e) {
+            Snowflake owner = null;
+            try {
+                // FIXME
+                // RedTeapot#1960
+                owner = Snowflake.of(253478914847014914L);
+            } catch (Throwable ignored) {
+            }
             log.error("Exception during command execution", e);
-            context.respond("Sorry, there was an internal error while executing the command.");
+
+            if (owner == null) {
+                context.respond("Sorry, there was an internal error while executing the command.");
+            } else {
+                context.respond("<@{}> Sorry, there was an internal error while executing the command.", owner.asString());
+            }
         }
     }
 
@@ -146,6 +159,7 @@ public class CommandDispatcher {
             return false;
         }
 
+        User authorUser;
         switch (commandInfo.getPermissions()) {
             case GENERAL:
                 return true;
@@ -158,10 +172,11 @@ public class CommandDispatcher {
                 // TODO Maybe check a configured Discord role
                 PermissionSet authorPermissions = authorMember.getBasePermissions().block();
                 ensure(authorPermissions != null, "Author permissions is null");
-                return authorPermissions.contains(Permission.ADMINISTRATOR);
+                return authorPermissions.contains(Permission.ADMINISTRATOR)
+                    || authorMember.getRoleIds().contains(Snowflake.of(733091195882045570L)); // FIXME
             case BOT_OWNER:
                 ensure(context.getMessage().getAuthor().isPresent(), "DM author not present");
-                User authorUser = context.getMessage().getAuthor().get();
+                authorUser = context.getMessage().getAuthor().get();
                 return config.getOwners().contains(authorUser.getTag());
             default:
                 return unreachable("Not all permissions are checked");

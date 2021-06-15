@@ -9,7 +9,7 @@ import javax.persistence.*;
 import java.net.URL;
 
 @Entity
-@Table(indexes = @Index(name = "unique", columnList = "member, link", unique = true))
+@Table(indexes = @Index(name = "uniquePlayedGame", columnList = "member, link", unique = true))
 @Data
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PlayedGame {
@@ -20,8 +20,12 @@ public class PlayedGame {
     private Snowflake member;
     private URL link;
 
-    public PlayedGame(Snowflake member, URL link) {
+    @Column(columnDefinition = "boolean default false")
+    private boolean manual;
+
+    public PlayedGame(Snowflake member, URL link, boolean manual) {
         this.member = member;
         this.link = link;
+        this.manual = manual;
     }
 }

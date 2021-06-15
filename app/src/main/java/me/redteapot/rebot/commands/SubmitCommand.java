@@ -15,6 +15,7 @@ import me.redteapot.rebot.frontend.arguments.URLArg;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
+import javax.persistence.PersistenceException;
 import javax.persistence.TypedQuery;
 import java.net.URL;
 import java.time.ZonedDateTime;
@@ -44,11 +45,14 @@ public class SubmitCommand extends Command {
 
     @Override
     public void execute() {
+        ensure(context.getMessage().getGuildId().isPresent(), "Guild id not present");
+
         EntityManager exchangeManager = Database.getInstance().getEntityManager(Exchange.class);
         EntityManager submissionManager = Database.getInstance().getEntityManager(Submission.class);
 
-        TypedQuery<Exchange> exchangeQ = exchangeManager.createQuery("SELECT e FROM Exchange e WHERE e.name = :name", Exchange.class);
+        TypedQuery<Exchange> exchangeQ = exchangeManager.createQuery("SELECT e FROM Exchange e WHERE e.name = :name AND e.guild = :guild", Exchange.class);
         exchangeQ.setParameter("name", exchangeName);
+        exchangeQ.setParameter("guild", context.getMessage().getGuildId().get());
         List<Exchange> exchanges = exchangeQ.getResultList();
 
         ensure(exchanges.size() <= 1, "Too many exchanges: {}", exchanges);
@@ -78,6 +82,7 @@ public class SubmitCommand extends Command {
         Optional<User> author = context.getMessage().getAuthor();
         ensure(author.isPresent(), "Author is not present");
         Snowflake member = author.get().getId();
+        ensure(member != null, "Member is null");
 
         EntityTransaction submissionTransaction = submissionManager.getTransaction();
         submissionTransaction.begin();
@@ -101,6 +106,9 @@ public class SubmitCommand extends Command {
                 submissionManager.merge(submission);
             }
             submissionTransaction.commit();
+        } catch (PersistenceException ignored) {
+            submissionTransaction.rollback();
+            context.respond(md("This game is already submitted: <{}>", gameLink));
         } catch (Throwable e) {
             submissionTransaction.rollback();
             throw e;

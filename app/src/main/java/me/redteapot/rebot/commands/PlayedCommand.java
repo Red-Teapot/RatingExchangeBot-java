@@ -38,10 +38,7 @@ public class PlayedCommand extends Command {
         EntityTransaction transaction = playedGameManager.getTransaction();
         transaction.begin();
         try {
-            playedGameManager.persist(new PlayedGame(
-                member,
-                gameLink
-            ));
+            playedGameManager.persist(new PlayedGame(member, gameLink, true));
             transaction.commit();
             context.respond("Got it!");
         } catch (PersistenceException ignored) {

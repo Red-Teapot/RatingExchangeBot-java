@@ -158,12 +158,7 @@ public class AssignmentScheduler implements Closeable, Runnable {
                     exchange.setState(Exchange.State.GRACE_PERIOD);
                     break;
                 case GRACE_PERIOD:
-                    message = md("Sending assignments for `{}`.", exchange.getName())
-                        .line("If you have submitted a game, you should receive your assignments soon.")
-                        .line("If this doesn't happen, please inform server administrators.");
-                    channel.createMessage(message.toString()).block();
-
-                    log.debug("Preparing data for the assigner");
+                    log.debug("Preparing data for the assigner for {}", exchange.getName());
                     List<Member> members = new ArrayList<>();
                     TypedQuery<Submission> submissions = submissionManager.createQuery("SELECT s FROM Submission s WHERE s.exchange = :exchange AND s.round = :round ", Submission.class);
                     submissions.setParameter("exchange", exchange);
@@ -180,26 +175,35 @@ public class AssignmentScheduler implements Closeable, Runnable {
                         members.add(new Member(submission.getMember(), playedGameList));
                     }
 
-                    log.debug("Running assigner");
+                    log.debug("Running assigner for {}", exchange.getName());
                     Assigner assigner = new Assigner(submissions.getResultList(), members, exchange.getGamesPerMember(), exchange.getGamesPerMember());
                     Map<Snowflake, List<URL>> assignments = Assigner.solve(assigner);
 
-                    log.debug("Sending assignments to members");
+                    message = md("Sending assignments for `{}`.", exchange.getName())
+                        .line("If you have submitted a game, you should receive your assignments soon.")
+                        .line("If this doesn't happen, please inform server administrators.");
+                    channel.createMessage(message.toString()).block();
+
+                    log.debug("Sending assignments to members for {}", exchange.getName());
                     for (Map.Entry<Snowflake, List<URL>> e : assignments.entrySet()) {
-                        sendAssignments(e.getKey(), e.getValue());
+                        try {
+                            sendAssignments(e.getKey(), e.getValue());
+                        } catch (Throwable exception) {
+                            log.warn("Couldn't send assignments to " + e.getKey().asString(), exception);
+                        }
                     }
 
-                    log.debug("Registering assigned games as played");
+                    log.debug("Registering assigned games as played for {}", exchange.getName());
                     EntityTransaction submissionsTransaction = submissionManager.getTransaction();
                     submissionsTransaction.begin();
                     for (Map.Entry<Snowflake, List<URL>> e : assignments.entrySet()) {
                         for (URL game : e.getValue()) {
-                            submissionManager.merge(new PlayedGame(e.getKey(), game));
+                            submissionManager.merge(new PlayedGame(e.getKey(), game, false));
                         }
                     }
                     submissionsTransaction.commit();
 
-                    log.debug("Updating exchange state");
+                    log.debug("Updating exchange state for {}", exchange.getName());
                     exchange.setRound(exchange.getRound() + 1);
                     if (exchange.getRound() >= exchange.getTotalRounds()) {
                         exchange.setState(Exchange.State.FINISHED);

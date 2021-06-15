@@ -90,6 +90,7 @@ public class CreateExchangeCommand extends Command {
                 Exchange.State.BEFORE_SUBMISSIONS,
                 gamesPerMember,
                 start,
+                start.getZone().getId(),
                 submissionDuration,
                 graceDuration));
             transaction.commit();

@@ -7,10 +7,11 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 @Entity
-@Table(indexes = @Index(name = "unique", columnList = "guild, name", unique = true))
+@Table(indexes = @Index(name = "uniqueExchange", columnList = "guild, name", unique = true))
 @Data
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Exchange {
@@ -28,6 +29,7 @@ public class Exchange {
     private int gamesPerMember;
 
     private ZonedDateTime startDateTime;
+    private String timezone;
     private Duration submissionDuration;
     private Duration graceDuration;
 
@@ -37,13 +39,14 @@ public class Exchange {
     private ZonedDateTime nextInvokeTime;
 
     public Exchange(Snowflake guild, String name, Snowflake submissionChannel, int totalRounds, State state,
-                    int gamesPerMember, ZonedDateTime startDateTime, Duration submissionDuration, Duration graceDuration) {
+                    int gamesPerMember, ZonedDateTime startDateTime, String timezone, Duration submissionDuration, Duration graceDuration) {
         this.guild = guild;
         this.name = name;
         this.submissionChannel = submissionChannel;
         this.totalRounds = totalRounds;
         this.gamesPerMember = gamesPerMember;
         this.startDateTime = startDateTime;
+        this.timezone = timezone;
         this.submissionDuration = submissionDuration;
         this.graceDuration = graceDuration;
 
@@ -51,6 +54,11 @@ public class Exchange {
         this.state = state;
 
         update();
+    }
+
+    public ZonedDateTime getStartDateTime() {
+        startDateTime = startDateTime.withZoneSameInstant(ZoneId.of(timezone));
+        return startDateTime;
     }
 
     public void setRound(int round) {
@@ -83,7 +91,7 @@ public class Exchange {
     }
 
     public ZonedDateTime getRoundStart() {
-        return startDateTime.plus(getTotalRoundDuration().multipliedBy(round));
+        return getStartDateTime().plus(getTotalRoundDuration().multipliedBy(round));
     }
 
     public ZonedDateTime getGraceStart() {
