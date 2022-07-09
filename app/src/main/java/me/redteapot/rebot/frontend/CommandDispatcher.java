@@ -12,16 +12,15 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import me.redteapot.rebot.*;
 import me.redteapot.rebot.commands.*;
-import me.redteapot.rebot.frontend.annotations.BotCommand;
-import me.redteapot.rebot.frontend.annotations.NamedArgument;
-import me.redteapot.rebot.frontend.annotations.OrderedArgument;
-import me.redteapot.rebot.frontend.annotations.Permissions;
+import me.redteapot.rebot.frontend.annotations.*;
 import me.redteapot.rebot.frontend.arguments.Identifier;
 import me.redteapot.rebot.frontend.arguments.UserMention;
 import me.redteapot.rebot.frontend.exceptions.InvalidArgumentNameException;
 import me.redteapot.rebot.frontend.exceptions.NamedArgumentsNotProvidedException;
 import me.redteapot.rebot.reading.MessageReader;
 import me.redteapot.rebot.reading.ReaderException;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -142,6 +141,8 @@ public class CommandDispatcher {
         reader.skip(Character::isWhitespace);
         fillNamedArguments(command, commandInfo, reader);
         reader.skip(Character::isWhitespace);
+        fillVarArguments(command, commandInfo, reader);
+        reader.skip(Character::isWhitespace);
 
         if (reader.canRead()) {
             Markdown markdown = new Markdown();
@@ -191,8 +192,7 @@ public class CommandDispatcher {
         for (OrderedArgumentInfo info : commandInfo.getOrderedArguments()) {
             reader.skip(Character::isWhitespace);
             final int position = reader.getPosition();
-            @SuppressWarnings("rawtypes")
-            ArgumentParser parser = info.getParser().getConstructor().newInstance();
+            ArgumentParser<?> parser = info.getParser().getConstructor().newInstance();
             try {
                 info.getField().set(command, parser.parse(reader));
             } catch (ReaderException e) {
@@ -229,8 +229,7 @@ public class CommandDispatcher {
             reader.expect('=');
             reader.skip(Character::isWhitespace);
             NamedArgumentInfo info = commandInfo.getNamedArguments().get(name);
-            @SuppressWarnings("rawtypes")
-            ArgumentParser parser = info.getParser().getConstructor().newInstance();
+            ArgumentParser<?> parser = info.getParser().getConstructor().newInstance();
 
             info.getField().set(command, parser.parse(reader));
             unfilledNamedArguments.remove(name);
@@ -248,6 +247,32 @@ public class CommandDispatcher {
         }
     }
 
+    private void fillVarArguments(Command command,
+                                  CommandInfo commandInfo,
+                                  MessageReader reader) throws Exception {
+        VarArgumentInfo info = commandInfo.getVarArgument();
+
+        if (info == null) {
+            return;
+        }
+
+        List<Object> values = new ArrayList<>();
+        ArgumentParser<?> parser = info.getParser().getConstructor().newInstance();
+        while (true) {
+            int position = reader.getPosition();
+
+            reader.skip(Character::isWhitespace);
+
+            try {
+                values.add(parser.parse(reader));
+            } catch (Throwable ignored) {
+                reader.rewind(position);
+                break;
+            }
+        }
+        info.getField().set(command, values);
+    }
+
     private void register(Class<? extends Command> command) {
         BotCommand commandAnnotation = command.getAnnotation(BotCommand.class);
         require(commandAnnotation != null,
@@ -260,9 +285,19 @@ public class CommandDispatcher {
         require(!commands.containsKey(name),
             "Duplicate command name: {} for {}", name, command);
         require(Arrays.stream(command.getDeclaredFields())
-                .filter(f -> f.getAnnotation(OrderedArgument.class) != null || f.getAnnotation(NamedArgument.class) != null)
+                .filter(f -> f.getAnnotation(OrderedArgument.class) != null
+                    || f.getAnnotation(NamedArgument.class) != null
+                    || f.getAnnotation(VariadicArgument.class) != null)
                 .allMatch(f -> Modifier.isPublic(f.getModifiers())),
             "Command argument fields must be all public");
+        require(Arrays.stream(command.getDeclaredFields())
+                .filter(f -> f.getAnnotation(VariadicArgument.class) != null)
+                .allMatch(f -> f.getType() == List.class),
+            "@VarArgument fields must be of type List<...>");
+        require(Arrays.stream(command.getDeclaredFields())
+                .filter(f -> f.getAnnotation(VariadicArgument.class) != null)
+                .count() <= 1,
+            "There must be no more than one @VarArgument field");
 
         commands.put(name, new CommandInfo(command));
 
@@ -291,6 +326,7 @@ public class CommandDispatcher {
         private final Class<? extends Command> clazz;
         private final List<OrderedArgumentInfo> orderedArguments;
         private final Map<String, NamedArgumentInfo> namedArguments;
+        private final VarArgumentInfo varArgument;
         private final Permissions permissions;
         private final boolean allowedInDM;
 
@@ -299,7 +335,7 @@ public class CommandDispatcher {
             this.permissions = clazz.getAnnotation(BotCommand.class).permissions();
             this.allowedInDM = clazz.getAnnotation(BotCommand.class).allowedInDM();
 
-            this.orderedArguments = Arrays.stream(clazz.getFields())
+            this.orderedArguments = Arrays.stream(clazz.getDeclaredFields())
                 .filter(f -> f.getAnnotation(OrderedArgument.class) != null)
                 .sorted(Comparator.comparingInt(f -> f.getAnnotation(OrderedArgument.class).order()))
                 .map(field -> {
@@ -322,7 +358,7 @@ public class CommandDispatcher {
             }
 
             this.namedArguments = new HashMap<>();
-            Arrays.stream(clazz.getFields())
+            Arrays.stream(clazz.getDeclaredFields())
                 .filter(f -> f.getAnnotation(NamedArgument.class) != null)
                 .forEach(field -> {
                     NamedArgument annotation = field.getAnnotation(NamedArgument.class);
@@ -337,6 +373,20 @@ public class CommandDispatcher {
                         field
                     ));
                 });
+
+            List<Tuple2<VariadicArgument, Field>> varargFields = Arrays.stream(clazz.getDeclaredFields())
+                .filter(f -> f.getAnnotation(VariadicArgument.class) != null)
+                .map(f -> Tuples.of(f.getAnnotation(VariadicArgument.class), f))
+                .collect(Collectors.toList());
+            require(varargFields.size() <= 1, "Too many @VarArgument fields: {}", varargFields.size());
+            if (!varargFields.isEmpty()) {
+                VariadicArgument annotation = varargFields.get(0).getT1();
+                Field field = varargFields.get(0).getT2();
+
+                varArgument = new VarArgumentInfo(annotation.type(), field);
+            } else {
+                varArgument = null;
+            }
         }
     }
 
@@ -344,7 +394,7 @@ public class CommandDispatcher {
     @AllArgsConstructor
     private static class OrderedArgumentInfo {
         private final int order;
-        private final Class<? extends ArgumentParser> parser;
+        private final Class<? extends ArgumentParser<?>> parser;
         private final boolean optional;
         private final Field field;
     }
@@ -353,8 +403,15 @@ public class CommandDispatcher {
     @AllArgsConstructor
     private static class NamedArgumentInfo {
         private final String name;
-        private final Class<? extends ArgumentParser> parser;
+        private final Class<? extends ArgumentParser<?>> parser;
         private final boolean optional;
+        private final Field field;
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class VarArgumentInfo {
+        private final Class<? extends ArgumentParser<?>> parser;
         private final Field field;
     }
 }

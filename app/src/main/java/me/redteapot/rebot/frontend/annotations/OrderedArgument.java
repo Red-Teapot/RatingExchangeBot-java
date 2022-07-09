@@ -22,8 +22,7 @@ public @interface OrderedArgument {
     /**
      * The parser class used for this argument value.
      */
-    @SuppressWarnings("rawtypes")
-    Class<? extends ArgumentParser> type();
+    Class<? extends ArgumentParser<?>> type();
 
     /**
      * Specifies if this argument is optional and can be omitted.
