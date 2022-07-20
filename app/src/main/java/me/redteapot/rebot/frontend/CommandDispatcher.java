@@ -57,6 +57,7 @@ public class CommandDispatcher {
 
         register(SubmitCommand.class);
         register(PlayedCommand.class);
+        register(RevokeSubmissionCommand.class);
 
         client.on(MessageCreateEvent.class).subscribe(this::onMessage);
 
