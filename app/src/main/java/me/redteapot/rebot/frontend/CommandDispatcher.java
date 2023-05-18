@@ -54,6 +54,7 @@ public class CommandDispatcher {
 
         register(CreateExchangeCommand.class);
         register(DeleteExchangeCommand.class);
+        register(DeleteSubmissionCommand.class);
 
         register(SubmitCommand.class);
         register(PlayedCommand.class);
